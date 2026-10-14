@@ -2,7 +2,7 @@
 
 What a candidate sees, does and is asked in the Phase 1 prototype. Phase 1 proves the core of the product: the app finds the experiences in a candidate's background that matter most for the role, then coaches the candidate to turn each one into a story they can tell and defend in an interview. The CV is only raw material: the output is interview stories, never a rewritten CV.
 
-**Status: revision 2, draft for founder approval.** Revision 1 was approved on 13 October 2026 (D-23). The founder's walkthrough on 14 October found it mechanical, unclear about what to do next and judged from the interviewer's side rather than the candidate's. This revision keeps the six steps and the go or no-go test, and changes how each step speaks to the candidate. The proposed decisions are listed at the end.
+**Status: revision 2, approved by the founder on 14 October 2026 (D-29 to D-36).** Revision 1 was approved on 13 October 2026 (D-23). The founder's walkthrough on 14 October found it mechanical, unclear about what to do next and judged from the interviewer's side rather than the candidate's. This revision keeps the six steps and the go or no-go test, and changes how each step speaks to the candidate. The decisions are listed at the end.
 
 ## Scope and journey
 
@@ -195,7 +195,7 @@ Unchanged. Phase 1 is tested by invited team members (D-26, D-28). Phase 2 start
 | Completion | At least 80% of testers finish within 45 minutes |
 | Scoring accuracy | The AI-only calibration set passes (D-16) |
 
-## Proposed decisions (recorded once approved)
+## Decisions in this revision
 
 | ID | Decision |
 | --- | --- |
@@ -210,10 +210,13 @@ Unchanged. Phase 1 is tested by invited team members (D-26, D-28). Phase 2 start
 
 ## Approval checklist
 
-- [ ] The welcome page and step names are right.
-- [ ] The new rating labels and the "Strong" and "Next" lines are right.
-- [ ] Questions written for each story (D-32), with at most four per story, are right.
-- [ ] The story building in STAR form, with "Did we get this right?", is right.
-- [ ] The gap verdict and the answers "Yes, I have", "No, I haven't" and "Not sure" are right.
-- [ ] The challenge cards and their tone are right.
-- [ ] The summary and its honest next step are right.
+Approved on 14 October 2026.
+
+
+- [x] The welcome page and step names are right.
+- [x] The new rating labels and the "Strong" and "Next" lines are right.
+- [x] Questions written for each story (D-32), with at most four per story, are right.
+- [x] The story building in STAR form, with "Did we get this right?", is right.
+- [x] The gap verdict and the answers "Yes, I have", "No, I haven't" and "Not sure" are right.
+- [x] The challenge cards and their tone are right.
+- [x] The summary and its honest next step are right.
