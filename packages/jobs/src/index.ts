@@ -157,7 +157,8 @@ export const experiencesScore = inngest.createFunction(
   {
     id: "experiences-score",
     triggers: [{ event: EVIDENCE_CHANGED }],
-    concurrency: [{ key: "event.data.experienceId", limit: 1 }, { limit: 10 }],
+    // One at a time per experience; the account-wide limit on the free plan caps the rest.
+    concurrency: { key: "event.data.experienceId", limit: 1 },
     retries: 3,
   },
   async ({ event, step }) => {
