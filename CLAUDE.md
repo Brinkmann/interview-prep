@@ -25,6 +25,9 @@ The founder, Oliver, is a senior programme manager, not a programmer. He approve
 - Never ask him to paste an API key, password or token into the chat. Tell him exactly where to enter it in the service's own settings.
 - Report progress against the acceptance tests (AT-01 to AT-13), not in code terms.
 - Discuss structure before writing code when a choice is not already settled in the spec.
+- Report outcomes only: pass or fail against the acceptance tests, and any action he must take. No progress narration or intermediate updates.
+- Merge your own pull requests once the GitHub checks and the staging connection check pass. Do not ask him to merge. Stop and ask only for decisions that change the spec, spend money, or need an account action only he can take.
+- Prioritise the platform itself. Monitoring and support tooling get the minimum the exit criteria require.
 - Write in British English. Do not use em dashes or en dashes as sentence punctuation; use commas or full stops. Be concise and give one clear recommendation rather than a list of options.
 
 ## How to build
