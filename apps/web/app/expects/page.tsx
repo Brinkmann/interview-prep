@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
-import { expectationQuestion } from "@interview-prep/jobs";
+import { expectationQuestion, expectationVerdict } from "@interview-prep/jobs";
 import { supabaseServer } from "@/lib/supabase/server";
 import { KeepFresh } from "../found/keep-fresh";
+import { NextStep, Page } from "../_ui/shell";
 import { Answer } from "./answer";
 
-// Screen 4: "Am I missing anything?" (05-phase1-experience.md).
+// Step 4, Check for gaps (05-phase1-experience.md, revision 2; D-34).
 export default async function Expects() {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
@@ -19,48 +20,45 @@ export default async function Expects() {
   ]);
   const list = rows ?? [];
   const textOf = (id: string | null) => (exps ?? []).find((e) => e.id === id)?.original_text;
-  const roleName = role.title?.trim() || "this";
+  const roleName = role.title?.trim() ? `a ${role.title.trim()}` : "this";
+  const short = (t: string) => (t.length > 80 ? `${t.slice(0, 80)}…` : t);
+  const open = list.filter((e) => e.status === "not_found" && e.answer === "unanswered");
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 760, margin: "3rem auto", padding: "0 1rem", lineHeight: 1.5 }}>
-      <h1>Am I missing anything?</h1>
+    <Page step={4} title="Am I missing anything?">
       {!list.length ? (
         <>
-          <p role="status">We're working out what a {roleName} role would normally call for. This usually takes under a minute.</p>
+          <p role="status" className="lead">We&apos;re working out what {roleName} role would normally ask for. This usually takes under a minute.</p>
           <KeepFresh />
         </>
       ) : (
         <>
-          <p>The experience a {roleName} role would normally call for, and whether we found it in your evidence.</p>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead>
-              <tr><th align="left">Expected area</th><th align="left">Where it comes from</th><th align="left">Status</th></tr>
-            </thead>
+          <p className="lead">{expectationVerdict(list)}</p>
+          <table className="plain">
+            <thead><tr><th>What the role asks for</th><th>Where it comes from</th><th>In your stories?</th></tr></thead>
             <tbody>
               {list.map((e) => (
-                <tr key={e.id} style={{ borderTop: "1px solid #ddd", verticalAlign: "top" }}>
-                  <td style={{ padding: "0.5rem 0.5rem 0.5rem 0" }}>{e.area[0]!.toUpperCase() + e.area.slice(1)}</td>
-                  <td style={{ padding: "0.5rem" }}>{e.source === "in_ad" ? "In the ad" : "Typical for this role"}</td>
-                  <td style={{ padding: "0.5rem" }}>
+                <tr key={e.id}>
+                  <td>{e.area[0]!.toUpperCase() + e.area.slice(1)}</td>
+                  <td className="small">{e.source === "in_ad" ? "In the ad" : "Typical for this role"}</td>
+                  <td className="small">
                     {e.status === "found"
-                      ? `Found${textOf(e.matched_experience_id) ? ` (${textOf(e.matched_experience_id)})` : ""}`
+                      ? <>Yes{textOf(e.matched_experience_id) ? `: ${short(textOf(e.matched_experience_id)!)}` : ""}</>
+                      : e.answer === "no" ? "A gap to prepare for"
+                      : e.answer === "unsure" ? "Open question"
                       : "Not found"}
-                    {e.status === "not_found" && e.answer === "no" && " · a gap to prepare for"}
-                    {e.status === "not_found" && e.answer === "unsure" && " · open question"}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {list.filter((e) => e.status === "not_found" && e.answer === "unanswered").map((e) => (
-            <Answer key={e.id} id={e.id} question={expectationQuestion(e, role.title)} />
-          ))}
-          <p style={{ marginTop: "2rem" }}>
-            {list.some((e) => e.answer === "yes") && <><a href="/sprint">Back to the evidence sprint</a> to build up what you added. </>}
-            <a href="/claims"><strong>Next: will my claims hold up?</strong></a>
-          </p>
+          {open.map((e) => <Answer key={e.id} id={e.id} question={expectationQuestion(e, role.title)} />)}
+          {list.some((e) => e.answer === "yes") && (
+            <p className="small">The examples you added are waiting in <a href="/sprint">Build your stories</a>.</p>
+          )}
+          <NextStep href="/claims">Next: prepare for challenges</NextStep>
         </>
       )}
-    </main>
+    </Page>
   );
 }

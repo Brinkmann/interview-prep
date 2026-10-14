@@ -30,7 +30,16 @@ export function toMonth(value: string | null, edge: "start" | "end", now: Date):
   return null;
 }
 
+function overlapRange(a: Job, b: Job, now: Date): [number, number] | null {
+  const pair = overlapSpans([a, b], now);
+  return pair.length ? pair[0]!.range : null;
+}
+
 export function overlaps(jobs: Job[], now = new Date()): [Job, Job][] {
+  return overlapSpans(jobs, now).map((o) => o.jobs);
+}
+
+function overlapSpans(jobs: Job[], now: Date): { jobs: [Job, Job]; range: [number, number] }[] {
   // A missing end date counts as "present" only for the most recently started role.
   const starts = jobs.map((j) => toMonth(j.start, "start", now) ?? -1);
   const latest = Math.max(...starts);
@@ -39,11 +48,13 @@ export function overlaps(jobs: Job[], now = new Date()): [Job, Job][] {
     e: toMonth(j.end ?? (starts[i] === latest && latest >= 0 ? "present" : null), "end", now),
   }))
     .filter((x): x is { j: Job; s: number; e: number } => x.s !== null && x.e !== null && x.e >= x.s);
-  const out: [Job, Job][] = [];
+  const out: { jobs: [Job, Job]; range: [number, number] }[] = [];
   for (let a = 0; a < spans.length; a++) {
     for (let b = a + 1; b < spans.length; b++) {
       const A = spans[a]!, B = spans[b]!;
-      if (Math.min(A.e, B.e) - Math.max(A.s, B.s) > 0) out.push([A.j, B.j]);
+      const start = Math.max(A.s, B.s);
+      const end = Math.min(A.e, B.e);
+      if (end - start > 0) out.push({ jobs: [A.j, B.j], range: [start, end] });
     }
   }
   return out;
@@ -61,30 +72,25 @@ function showDate(v: string | null): string {
   return m ? `${MONTHS[Number(m[2]) - 1]} ${m[1]}` : v;
 }
 
-// Approved question wording (05-phase1-experience.md), by template (tone guard).
-export function claimQuestion(type: ClaimType, detail?: { noun?: string | null; jobs?: [Job, Job] }): string {
-  switch (type) {
-    case "vague":
-      return "By how much, compared with what, and over what period?";
-    case "ownership":
-      return "What was your personal part in this?";
-    case "unlikely": {
-      const noun = detail?.noun?.trim().toLowerCase();
-      const word = noun && /^[a-z]{3,20}$/.test(noun) ? noun : "figure";
-      return `That's an unusually large ${word}. How was it measured, and what made it possible?`;
-    }
-    case "inconsistent": {
-      const [a, b] = detail!.jobs!;
-      return `${a.label} (${showDate(a.start)} to ${showDate(a.end)}) and ${b.label} (${showDate(b.start)} to ${showDate(b.end)}) overlap. ` +
-        "Were these roles at the same time, or is one date wrong?";
-    }
-  }
+function fromMonth(m: number): string {
+  return `${MONTHS[m % 12]} ${Math.floor(m / 12)}`;
 }
+
+// The date question is built by rule from the dates (AT-09); the others are written by
+// the model for each claim (D-35). The ownership fallback keeps AT-09 when the model omits one.
+export function datesQuestion(a: Job, b: Job, now = new Date()): string {
+  const range = overlapRange(a, b, now);
+  const when = range ? ` from ${fromMonth(range[0])} to ${fromMonth(range[1])}` : "";
+  return `Your roles at ${a.label} and ${b.label} overlap${when}. Did you hold both at once, or is one date out?`;
+}
+
+export const OWNERSHIP_FALLBACK = "What was your own part in this?";
 
 export interface ClaimDeps {
   db: SupabaseClient;
   jobDates: (cvText: string) => Promise<Job[]>;
-  flag: (experiences: string[]) => Promise<{ index: number; type: "vague" | "unlikely"; figure_noun: string | null }[]>;
+  // Questions come back already checked by the tone and number guards.
+  flag: (experiences: string[], ownership: number[]) => Promise<{ index: number; type: "vague" | "unlikely" | "ownership"; question: string }[]>;
   modelId: string; promptVersion: string;
 }
 
@@ -101,21 +107,23 @@ export async function checkClaimsFor(deps: ClaimDeps, candidateId: string, now =
   const rows: Record<string, unknown>[] = [];
   const base = { candidate_id: candidateId, answer: null, resulting_action: null, model_id: deps.modelId, prompt_version: deps.promptVersion };
 
-  for (const pair of overlaps(await deps.jobDates(cv.data.redacted_text), now)) {
-    rows.push({ ...base, trigger: "inconsistent", target_id: cv.data.id, question: claimQuestion("inconsistent", { jobs: pair }), source_type: "cv" });
+  for (const [a, b] of overlaps(await deps.jobDates(cv.data.redacted_text), now)) {
+    rows.push({ ...base, trigger: "inconsistent", target_id: cv.data.id, question: datesQuestion(a, b, now), source_type: "cv" });
   }
+  // "We" without "I" always gets an ownership question (AT-09).
+  const ownership = list.flatMap((e, i) => (saysWe(e.original_text) ? [i] : []));
+  const flags = list.length ? await deps.flag(list.map((e) => e.original_text), ownership) : [];
   const flagged = new Set<number>();
-  for (const [i, e] of list.entries()) {
-    if (saysWe(e.original_text)) {
-      flagged.add(i);
-      rows.push({ ...base, trigger: "ownership", target_id: e.id, question: claimQuestion("ownership"), source_type: "cv" });
-    }
+  for (const i of ownership) {
+    const written = flags.find((f) => f.index === i && f.type === "ownership");
+    flagged.add(i);
+    rows.push({ ...base, trigger: "ownership", target_id: list[i]!.id, question: written?.question ?? OWNERSHIP_FALLBACK, source_type: "cv" });
   }
-  for (const f of list.length ? await deps.flag(list.map((e) => e.original_text)) : []) {
+  for (const f of flags) {
     const e = list[f.index];
     if (!e || flagged.has(f.index)) continue;
     flagged.add(f.index);
-    rows.push({ ...base, trigger: f.type, target_id: e.id, question: claimQuestion(f.type, { noun: f.figure_noun }), source_type: "cv" });
+    rows.push({ ...base, trigger: f.type, target_id: e.id, question: f.question, source_type: "cv" });
   }
 
   // Unanswered checks are replaced; answered ones are the candidate's and stay.
@@ -133,14 +141,15 @@ export async function checkClaimsFor(deps: ClaimDeps, candidateId: string, now =
 // The candidate's reply: an explanation, or their own corrected wording. The app never
 // edits the claim itself (AT-09); a correction is kept as the candidate's evidence.
 export async function answerClaim(
-  db: SupabaseClient, candidateId: string, req: { probeId: string; answer: string; corrected: boolean },
+  db: SupabaseClient, candidateId: string, req: { probeId: string; answer: string; corrected: boolean; fine?: boolean },
 ) {
-  const answer = req.answer.trim().slice(0, 2000);
+  // "This is fine as it is" (D-35) is the candidate's answer too.
+  const answer = req.fine ? "This is fine as it is." : req.answer.trim().slice(0, 2000);
   if (!answer) return { ok: false as const, error: "empty" as const };
   const { data: probe } = await db.from("probes").select("id, trigger, target_id")
     .eq("id", req.probeId).in("trigger", ["vague", "inconsistent", "unlikely", "ownership"]).maybeSingle();
   if (!probe) return { ok: false as const, error: "not_found" as const };
-  const updated = await db.from("probes").update({ answer, resulting_action: req.corrected ? "candidate_corrected" : "explained" }).eq("id", probe.id);
+  const updated = await db.from("probes").update({ answer, resulting_action: req.fine ? "confirmed_fine" : req.corrected ? "candidate_corrected" : "explained" }).eq("id", probe.id);
   if (updated.error) return { ok: false as const, error: "could_not_save" as const };
   return { ok: true as const, trigger: probe.trigger as ClaimType, experienceId: probe.trigger === "inconsistent" ? null : probe.target_id as string };
 }

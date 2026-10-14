@@ -1,8 +1,8 @@
 // Phase 1 smoke run: every new AI task once, on a synthetic CV (the worked example),
 // against the real models. Checks schemas, integrity guards and wiring, and prices the run.
 // Prints pass or fail per check and counts only.
-import { numberGuard, runTask, type TaskName } from "@interview-prep/ai";
-import { locate, overlaps, parseAnswer, type SprintItem } from "@interview-prep/jobs";
+import { bandFor, flatters, numberGuard, overallScore, runTask, unsupportedNumbers, type TaskName } from "@interview-prep/ai";
+import { locate, overlaps, saysWe } from "@interview-prep/jobs";
 import { ledger } from "./ledger";
 
 const CV = `Alex Example
@@ -60,8 +60,12 @@ if (exps.length) {
     expect("build_expectations labels areas from the ad as in_ad (AT-08)", built.areas.some((a) => a.source === "in_ad"));
   }
 
-  const flags = await attempt("check_claims", () => runTask("check_claims", { experiences: exps.map((e) => e.text) }, ctx()));
+  const ownership = exps.flatMap((e, i) => (saysWe(e.text) ? [i] : []));
+  const flags = await attempt("check_claims", () => runTask("check_claims", { experiences: exps.map((e) => e.text), ownership }, ctx()));
   if (flags) {
+    expect("check_claims writes an ownership question for each 'we' claim (AT-09)", ownership.every((i) => flags.flags.some((f) => f.index === i && f.type === "ownership")));
+    expect("check_claims questions are plain and invent no numbers (D-35)", flags.flags.every((f) =>
+      !flatters(f.question) && !unsupportedNumbers(f.question, [exps[f.index]?.text ?? ""]).length));
     const flaggedText = (type: string) => flags.flags.filter((f) => f.type === type).map((f) => exps[f.index]?.text ?? "");
     expect("check_claims flags the 70% cut as unlikely", flaggedText("unlikely").some((t) => t.includes("70%")));
     expect("check_claims flags 'significantly improved' as vague", flaggedText("vague").some((t) => /significantly/i.test(t)));
@@ -75,21 +79,36 @@ if (dates) {
   expect("the March to August 2021 overlap is flagged by rule (AT-09)", overlaps(dates.jobs).length === 1);
 }
 
-const item: SprintItem = {
-  id: "x", job: "Operations Manager", text: "Responsible for a team of 12 in the dispatch centre.", rank: 1,
-  evidence: { outcome: "On-time dispatch improved" }, skipped: [], next: "change", question: "From what to what?",
-};
-const parsed = await attempt("parse_sprint_answer", () => parseAnswer(
-  (input, check) => runTask("parse_sprint_answer", input, ctx(check)), item, "about 85% to about 96%, that's my estimate"));
+const LINE = "Responsible for a team of 12 in the dispatch centre.";
+const first = await attempt("next_sprint_question", () => runTask("next_sprint_question", {
+  experience: LINE, job: "Operations Manager", role: "Supply Chain Manager", story: null, history: [], graduate: false,
+}, ctx()));
+if (first) {
+  expect("next_sprint_question drafts the story from the CV line (D-33)", !!first.draft && !!first.draft.situation);
+  expect("next_sprint_question asks one plain question (D-32)", !!first.question && !flatters(first.question) && first.question.split(" ").length <= 45);
+  expect("next_sprint_question invents no numbers", !unsupportedNumbers(`${first.question ?? ""} ${Object.values(first.draft ?? {}).join(" ")}`, [LINE]).length);
+}
+const story = { situation: "I led a 12-person dispatch team.", action: null, result: null };
+const parsed = await attempt("parse_sprint_answer", () => runTask("parse_sprint_answer", {
+  experience: LINE, story, question: "While you led the team, what improved?", answer: "On-time dispatch went from about 85% to about 96%, that's my estimate",
+}, ctx()));
 if (parsed) {
-  expect("parse_sprint_answer keeps the candidate's figures", /85/.test(parsed.baseline ?? "") && /96/.test(parsed.new_value ?? ""));
+  expect("parse_sprint_answer puts the candidate's figures in the result", /85/.test(parsed.result ?? "") && /96/.test(parsed.result ?? ""));
+  expect("parse_sprint_answer keeps the situation", !!parsed.situation);
   expect("parse_sprint_answer notices the figures are an estimate", parsed.numbers_labelled === "estimate");
   const guard = numberGuard(["about 85% to about 96%"], (o: { v: string }) => [o.v]);
   expect("the number guard rejects an invented number (AT-06)", guard({ v: "from 85% to 99%" } as never) !== null);
 }
 
-const scored = await attempt("score_experience", () => runTask("score_experience", { experience: item.text }, ctx()));
-if (scored) expect("score_experience rates a duty low", Object.values(scored.scores).reduce((a, b) => a + b, 0) / 5 < 4);
+const duty = await attempt("score_experience", () => runTask("score_experience", { experience: LINE }, ctx()));
+if (duty) {
+  expect("score_experience rates a duty as worth building", bandFor(overallScore(duty.scores)) === "not_yet_a_story");
+  expect("score_experience gives a next step for a duty (D-30)", !!duty.next_step && !flatters(duty.next_step));
+}
+const saving = await attempt("score_experience", () => runTask("score_experience", {
+  experience: "Reduced external IT expenditure by NZ$2M annually through cost-control disciplines and supplier renegotiation.",
+}, ctx()));
+if (saving) expect("score_experience rates a specific saving at least almost there", bandFor(overallScore(saving.scores)) !== "not_yet_a_story");
 
 const { byTask, totalCost } = book.summary();
 console.log(JSON.stringify({ results, byTask, totalCostUsd: Number(totalCost.toFixed(4)) }, null, 2));

@@ -31,22 +31,28 @@ export const claimsJobDates: TaskDefinition<{ cvText: string }, typeof datesOutp
 const claimsOutput = z.object({
   flags: z.array(z.object({
     index: z.number().int().min(0),
-    type: z.enum(["vague", "unlikely"]),
-    figure_noun: z.string().nullable().describe('For unlikely: one plain word for what the figure is, such as "saving", "increase" or "reduction"'),
+    type: z.enum(["vague", "unlikely", "ownership"]),
+    question: z.string().describe("The question an interviewer would ask about this claim, written for it, under 30 words"),
   })),
 });
 
-export const checkClaims: TaskDefinition<{ experiences: string[] }, typeof claimsOutput> = {
+// D-35: each question is written for its claim and raised only where it fits.
+export const checkClaims: TaskDefinition<{ experiences: string[]; ownership: number[] }, typeof claimsOutput> = {
   tier: "medium",
-  promptVersion: "check_claims@1",
+  promptVersion: "check_claims@2",
   effort: "low",
-  maxTokens: 2000,
+  maxTokens: 3000,
   system: [
-    "You spot claims in a candidate's CV that an interviewer is likely to challenge, so the candidate can prepare an answer first.",
-    'Flag "vague" where a claimed improvement has no size, baseline or period, such as "significantly improved efficiency".',
+    "You spot claims in a candidate's CV that an interviewer is likely to push back on, so the candidate can prepare an answer first.",
+    'Flag "vague" only where a claimed improvement has no size and a size would matter, such as "significantly improved efficiency". Do not flag work that is not about a measurable change, such as restructuring roles or advising a client.',
     'Flag "unlikely" where a figure is unusually large for what is described, such as cutting transport costs by 70%.',
-    "Do not flag plain duties or statements that make no claim. Flag each experience at most once, with its strongest issue.",
+    'Flag "ownership" where the claim says "we" and the candidate\'s own part is unclear. Always include the experiences listed as needing an ownership question.',
+    "Flag each experience at most once, with its strongest issue. Do not flag plain duties or statements that make no claim.",
+    "Write each question as a helpful colleague preparing them, never as an accusation, and specific to that claim: name what it is about. For example: \"What was your own part in rolling out the new WMS?\" or \"That's a large saving. How was it measured, and what made it possible?\" No praise.",
+    "Never write a number in a question that is not in that experience.",
   ].join(" "),
-  buildUserMessage: ({ experiences }) => `<experiences>\n${experiences.map((e, i) => `[${i}] ${e}`).join("\n")}\n</experiences>`,
+  buildUserMessage: ({ experiences, ownership }) =>
+    `<experiences>\n${experiences.map((e, i) => `[${i}] ${e}`).join("\n")}\n</experiences>` +
+    (ownership.length ? `\n<needs_ownership_question>${ownership.join(", ")}</needs_ownership_question>` : ""),
   output: claimsOutput,
 };

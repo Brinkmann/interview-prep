@@ -1,40 +1,30 @@
 import { redirect } from "next/navigation";
-import { evidenceNote, sprintItems, summarise } from "@interview-prep/jobs";
+import { sprintItems } from "@interview-prep/jobs";
+import { toState } from "@/lib/sprint";
 import { supabaseServer } from "@/lib/supabase/server";
+import { Page } from "../_ui/shell";
 import { Sprint } from "./sprint";
 
-// Screen 3: "How do I turn these into stories I can tell?" (05-phase1-experience.md).
+// Step 3, Build your stories (05-phase1-experience.md, revision 2; D-32, D-33).
 export default async function SprintPage() {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/sign-in");
-
-  const [{ graduate, items }, { data: scores }] = await Promise.all([
-    sprintItems(supabase),
-    supabase.from("scores").select("experience_id, band, reasons, created_at"),
-  ]);
-  const { groups } = summarise(
-    items.map((i) => ({ id: i.id, job_label: i.job, original_text: i.text, source_span: null, rank_for_role: i.rank })),
-    scores ?? [],
-  );
-  const bands = new Map(groups.flatMap((g) => g.cards.map((c) => [c.id, c.band])));
+  const { graduate, items } = await sprintItems(supabase);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 760, margin: "3rem auto", padding: "0 1rem", lineHeight: 1.5 }}>
-      <h1>How do I turn these into stories I can tell?</h1>
+    <Page step={3} title="How do I turn these into stories I can tell?">
       {items.length === 0 ? (
-        <p>We haven't picked the experiences for this role yet. <a href="/found">Go back to what we found</a>.</p>
+        <p>We haven&apos;t picked your experiences for this role yet. <a href="/found">Go back to your strongest material</a>.</p>
       ) : (
-        <Sprint
-          graduate={graduate}
-          items={items.map((i) => ({
-            id: i.id, job: i.job, text: i.text, next: i.next, question: i.question,
-            band: bands.get(i.id) ?? null, note: evidenceNote(i.text, i.evidence),
-            hasEvidence: !!i.evidence, labelled: i.evidence?.is_estimate ?? null,
-          }))}
-        />
+        <>
+          <p className="lead">
+            We&apos;ll take {graduate ? "the experiences from your study, volunteering and part-time work" : "your experiences"} one at a time and build each into a story you can tell:
+            the situation, what you did, and what changed. A few questions each, written for that story. Answer what you can and skip the rest.
+          </p>
+          <Sprint initial={items.map(toState)} />
+        </>
       )}
-      <p style={{ marginTop: "2rem" }}><a href="/found">Back to what we found</a></p>
-    </main>
+    </Page>
   );
 }

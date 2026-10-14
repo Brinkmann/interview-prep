@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Interview Prep",
-  description: "Turn your experience into evidence you can tell and defend.",
+  description: "Get ready for your interview, using what you've already done.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

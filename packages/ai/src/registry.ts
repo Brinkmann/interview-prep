@@ -4,6 +4,7 @@ import { calibrationScoreStatement, calibrationWriteStatement } from "./tasks/ca
 import { buildExpectations } from "./tasks/build-expectations";
 import { checkClaims, claimsJobDates } from "./tasks/check-claims";
 import { extractExperiences } from "./tasks/extract-experiences";
+import { nextSprintQuestion } from "./tasks/next-sprint-question";
 import { parseSprintAnswer } from "./tasks/parse-sprint-answer";
 import { rankForRole } from "./tasks/rank-for-role";
 import { redactSensitive } from "./tasks/redact-sensitive";
@@ -28,6 +29,7 @@ export const TASKS = {
   extract_experiences: extractExperiences,
   rank_for_role: rankForRole,
   score_experience: scoreExperience,
+  next_sprint_question: nextSprintQuestion,
   parse_sprint_answer: parseSprintAnswer,
   build_expectations: buildExpectations,
   claims_job_dates: claimsJobDates,

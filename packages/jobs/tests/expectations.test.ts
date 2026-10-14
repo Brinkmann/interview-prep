@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerExpectation, expectationQuestion } from "../src/expectations/answer";
+import { answerExpectation, expectationQuestion, expectationVerdict } from "../src/expectations/answer";
 import { buildForRole, titleGuess, type ExpectationDeps } from "../src/expectations/build";
 import { fakeSupabase } from "./fake-supabase";
 
@@ -64,7 +64,7 @@ describe("what this role expects (AT-08)", () => {
     expect(inventory).toMatchObject({ answer: "no", status: "not_found" });
     const gapProbe = tables.probes!.find((p) => p.target_id === inventory!.id)!;
     expect(gapProbe).toMatchObject({ trigger: "expectation", resulting_action: "gap_recorded" });
-    expect(gapProbe.question).toBe("Supply Chain Manager roles usually involve inventory planning or forecasting. Did you do this and leave it off your CV?");
+    expect(gapProbe.question).toBe("Supply Chain Manager roles usually involve inventory planning or forecasting. Have you done this?");
 
     await answerExpectation(client, "c1", { expectationId: inventory!.id as string, answer: "unsure" });
     expect(inventory).toMatchObject({ answer: "unsure", status: "not_found" });
@@ -77,9 +77,19 @@ describe("what this role expects (AT-08)", () => {
     expect(await buildForRole(deps, "c1")).toMatchObject({ built: 0, reason: "answered" });
   });
 
+  it("opens with a verdict (D-34)", () => {
+    const rows = [
+      { status: "found", answer: "unanswered" }, { status: "found", answer: "unanswered" },
+      { status: "not_found", answer: "unanswered" }, { status: "not_found", answer: "no" },
+    ];
+    expect(expectationVerdict(rows)).toBe(
+      "This role usually asks for 4 things. Your stories already show 2. Two we didn't find are below. If you've done them, tell us and we'll add them to your stories.",
+    );
+  });
+
   it("asks in the approved words", () => {
     expect(expectationQuestion({ area: "budget responsibility", source: "in_ad" }, "Supply Chain Manager"))
-      .toBe("This role asks for budget responsibility. Did you do this and leave it off your CV?");
+      .toBe("This role asks for budget responsibility. Have you done this?");
     expect(titleGuess("Senior Project Manager (Digital) – Wellington\nAbout us")).toContain("Senior Project Manager");
   });
 });
