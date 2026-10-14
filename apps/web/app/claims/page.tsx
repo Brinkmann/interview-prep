@@ -1,55 +1,61 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { KeepFresh } from "../found/keep-fresh";
+import { NextStep, Page } from "../_ui/shell";
 import { ClaimAnswer } from "./claim-answer";
 
-// Screen 5: "Will my claims hold up?" (05-phase1-experience.md).
-const TYPE = { vague: "Vague", inconsistent: "Inconsistent", unlikely: "Unlikely", ownership: "Unclear ownership" } as const;
+// Step 5, Prepare for challenges (05-phase1-experience.md, revision 2; D-35).
+const TYPE = { vague: "Needs a figure", inconsistent: "Dates", unlikely: "Unusually large", ownership: "Your part" } as const;
 type Trigger = keyof typeof TYPE;
+const DONE: Record<string, string> = {
+  explained: "Your answer", candidate_corrected: "Your corrected wording", confirmed_fine: "You marked this as fine as it is",
+};
 
 export default async function Claims() {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/sign-in");
 
-  const [{ data: probes }, { data: firstFound }, { data: experiences }] = await Promise.all([
+  const [{ data: probes }, { data: experiences }] = await Promise.all([
     supabase.from("probes").select("id, trigger, target_id, question, answer, resulting_action, created_at")
       .in("trigger", Object.keys(TYPE)).order("created_at"),
-    supabase.from("experiences").select("id, original_text, created_at").eq("source_type", "cv").order("created_at").limit(1),
-    supabase.from("experiences").select("id, original_text"),
+    supabase.from("experiences").select("id, original_text, source_type, created_at").order("created_at"),
   ]);
   const list = probes ?? [];
   const textOf = (id: string) => (experiences ?? []).find((e) => e.id === id)?.original_text;
   // Checks run a minute or so after experiences are found; after five minutes an empty list is final.
-  const since = firstFound?.[0] ? Date.now() - new Date(firstFound[0].created_at).getTime() : 0;
+  const firstFound = (experiences ?? []).find((e) => e.source_type === "cv");
+  const since = firstFound ? Date.now() - new Date(firstFound.created_at).getTime() : Infinity;
   const waiting = !list.length && since < 5 * 60_000;
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 760, margin: "3rem auto", padding: "0 1rem", lineHeight: 1.5 }}>
-      <h1>Will my claims hold up?</h1>
+    <Page step={5} title="What will an interviewer push back on?">
       {waiting ? (
         <>
-          <p role="status">We're checking your claims the way an interviewer might. This usually takes under a minute.</p>
+          <p role="status" className="lead">We&apos;re reading your claims the way an interviewer might. This usually takes under a minute.</p>
           <KeepFresh />
         </>
       ) : !list.length ? (
-        <p>We didn't find any claims an interviewer is likely to challenge.</p>
+        <p className="lead">We didn&apos;t find any claims an interviewer is likely to push back on.</p>
       ) : (
-        <p>Claims an interviewer might challenge, each with the question they're likely to ask. Answer them here first, while you can check your facts.</p>
+        <p className="lead">
+          These are the claims an interviewer is most likely to question. Answer them here, while you can check your facts,
+          or mark any that are fine as they are.
+        </p>
       )}
       {list.map((p) => (
-        <section key={p.id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: "0.75rem 1rem", margin: "1rem 0" }}>
-          <p style={{ margin: 0, color: "#555" }}>{TYPE[p.trigger as Trigger]}</p>
-          {p.trigger !== "inconsistent" && textOf(p.target_id) && <p style={{ margin: "0.25rem 0" }}>“{textOf(p.target_id)}”</p>}
-          <p><strong>{p.question}</strong></p>
+        <section key={p.id} className="card">
+          <p className="small muted" style={{ margin: 0 }}>{TYPE[p.trigger as Trigger]}</p>
+          <p><b>From your CV:</b> {p.trigger === "inconsistent" ? "your job dates" : <>&ldquo;{textOf(p.target_id)}&rdquo;</>}</p>
+          <p><b>An interviewer might ask:</b> <em>{p.question}</em></p>
           {p.answer ? (
-            <p>{p.resulting_action === "candidate_corrected" ? "Your corrected wording: " : "Your answer: "}{p.answer}</p>
+            <p className="story" style={{ margin: 0 }}><b>{DONE[p.resulting_action ?? ""] ?? "Your answer"}</b>{p.resulting_action === "confirmed_fine" ? "." : `: ${p.answer}`}</p>
           ) : (
             <ClaimAnswer id={p.id} canCorrect={p.trigger !== "ownership"} />
           )}
         </section>
       ))}
-      {!waiting && <p style={{ marginTop: "2rem" }}><a href="/summary"><strong>Next: where do I stand now?</strong></a></p>}
-    </main>
+      {!waiting && <NextStep href="/summary">Next: where you stand</NextStep>}
+    </Page>
   );
 }

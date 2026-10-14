@@ -6,12 +6,29 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ExpectationAnswer = "yes" | "no" | "unsure";
 
-// Approved wording, by template (tone guard).
+// Approved wording, by template (tone guard, D-34).
 export function expectationQuestion(e: { area: string; source: string }, title: string | null): string {
   const role = title?.trim() ? `${title.trim()} roles` : "Roles like this";
   return e.source === "in_ad"
-    ? `This role asks for ${e.area}. Did you do this and leave it off your CV?`
-    : `${role} usually involve ${e.area}. Did you do this and leave it off your CV?`;
+    ? `This role asks for ${e.area}. Have you done this?`
+    : `${role} usually involve ${e.area}. Have you done this?`;
+}
+
+const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+const word = (n: number) => WORDS[n] ?? String(n);
+const capital = (s: string) => s[0]!.toUpperCase() + s.slice(1);
+
+// The verdict that opens Step 4 (D-34).
+export function expectationVerdict(rows: { status: string; answer: string }[]): string {
+  const total = rows.length;
+  const found = rows.filter((r) => r.status === "found").length;
+  const missing = rows.filter((r) => r.status !== "found");
+  const unanswered = missing.filter((r) => r.answer === "unanswered").length;
+  const head = `This role usually asks for ${total} ${total === 1 ? "thing" : "things"}. Your stories already show ${found}.`;
+  if (!missing.length) return `${head} Nothing is missing.`;
+  if (!unanswered) return `${head} You've answered for the ${word(missing.length)} we didn't find.`;
+  return `${head} ${capital(word(missing.length))} we didn't find${missing.length === 1 ? " is" : " are"} below. ` +
+    `If you've done ${missing.length === 1 ? "it" : "them"}, tell us and we'll add ${missing.length === 1 ? "it" : "them"} to your stories.`;
 }
 
 export async function answerExpectation(

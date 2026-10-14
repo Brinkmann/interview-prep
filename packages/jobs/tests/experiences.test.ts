@@ -33,7 +33,7 @@ function setup(scoreAs: number[] = [2, 2, 2]) {
       ],
     }),
     rank: async () => [{ index: 1 }, { index: 0 }, { index: 7 }],
-    score: async (experience) => (scored.push(experience), { scores: all(scoreAs.shift() ?? 2), reasons: ["duty_not_outcome" as Reason] }),
+    score: async (experience) => (scored.push(experience), { scores: all(scoreAs.shift() ?? 2), reasons: ["duty_not_outcome" as Reason], strength: null, next_step: "What changed while you led the team?" }),
     modelIds: { extract: "m-small", rank: "m-medium", score: "m-medium" },
     promptVersions: { extract: "extract_experiences@1", score: "score_experience@1" },
   };
@@ -63,7 +63,7 @@ describe("experience extraction (AT-04)", () => {
   it("ranks for the role, ignoring indexes that do not exist", async () => {
     const { deps, tables } = setup();
     await extractFromCv(deps, "c1");
-    expect(await rankForRole(deps, "c1")).toEqual({ ranked: 2 });
+    expect(await rankForRole(deps, "c1")).toMatchObject({ ranked: 2 });
     const ranks = tables.experiences!.map((e) => [e.original_text, e.rank_for_role]);
     expect(ranks.find(([t]) => (t as string).startsWith("Responsible"))![1]).toBe(1);
   });
@@ -90,10 +90,14 @@ describe("rating guard (AT-10)", () => {
     const id = tables.experiences![1]!.id as string;
     expect(await scoreOne(deps, "c1", id)).toEqual({ outcome: "scored", band: "not_yet_a_story" });
     expect(await scoreOne(deps, "c1", id)).toEqual({ outcome: "unchanged" });
-    tables.evidence!.push({ id: "e1", candidate_id: "c1", experience_id: id, outcome: "On-time dispatch improved" });
+    tables.evidence!.push({ id: "e1", candidate_id: "c1", experience_id: id, result: "On-time dispatch improved" });
+    // The rating only moves once the candidate confirms an answer.
+    expect(await scoreOne(deps, "c1", id)).toEqual({ outcome: "unchanged" });
+    tables.probes!.push({ id: "p1", candidate_id: "c1", target_id: id, trigger: "missing_field", resulting_action: "saved" });
     expect(await scoreOne(deps, "c1", id)).toEqual({ outcome: "scored", band: "needs_detail" });
     expect(scored).toHaveLength(2);
     expect(tables.scores!.map((s) => s.evidence_version)).toEqual([0, 1]);
+    expect(tables.scores![0]!.next_step).toBe("What changed while you led the team?");
   });
 });
 
@@ -104,31 +108,31 @@ describe("locate", () => {
   });
 });
 
-describe("Screen 2 summary (AT-04)", async () => {
-  const { summarise, headline } = await import("../src/experiences/summary");
-  it("counts only the latest rating per experience, matching the cards", () => {
+describe("Step 2 strongest material (AT-04)", async () => {
+  const { strongestMaterial, headline } = await import("../src/experiences/summary");
+  it("leads with the ranked experiences, counts their latest ratings, and keeps the rest collapsed", () => {
     const exps = [
-      { id: "a", job_label: "Ops", original_text: "A", source_span: "[50,60)", rank_for_role: 1 },
-      { id: "b", job_label: "Ops", original_text: "B", source_span: "[5,10)", rank_for_role: null },
+      { id: "a", job_label: "Ops", original_text: "A", source_span: "[50,60)", rank_for_role: 2 },
+      { id: "b", job_label: "Ops", original_text: "B", source_span: "[5,10)", rank_for_role: 1 },
       { id: "c", job_label: "Clerk", original_text: "C", source_span: "[100,110)", rank_for_role: null },
     ];
     const scores = [
       { experience_id: "a", band: "not_yet_a_story" as const, reasons: [], created_at: "2026-10-14T01:00:00Z" },
-      { experience_id: "a", band: "needs_detail" as const, reasons: [], created_at: "2026-10-14T02:00:00Z" },
+      { experience_id: "a", band: "needs_detail" as const, reasons: [], created_at: "2026-10-14T02:00:00Z", next_step: "Roughly how much?" },
       { experience_id: "b", band: "interview_ready" as const, reasons: [], created_at: "2026-10-14T01:00:00Z" },
       { experience_id: "c", band: "not_yet_a_story" as const, reasons: [], created_at: "2026-10-14T01:00:00Z" },
     ];
-    const s = summarise(exps, scores);
-    expect(s.counts).toEqual({ interview_ready: 1, needs_detail: 1, not_yet_a_story: 1 });
-    expect(s.groups.map((g) => g.job)).toEqual(["Ops", "Clerk"]);
-    expect(s.groups[0]!.cards.map((c) => c.id)).toEqual(["b", "a"]);
-    const cardBands = s.groups.flatMap((g) => g.cards.map((c) => c.band));
+    const s = strongestMaterial(exps, scores);
+    expect(s.top.map((c) => c.id)).toEqual(["b", "a"]);
+    expect(s.rest.map((c) => c.id)).toEqual(["c"]);
+    expect(s.top[1]!.nextStep).toBe("Roughly how much?");
+    expect(s.counts).toEqual({ interview_ready: 1, needs_detail: 1, not_yet_a_story: 0 });
     for (const band of ["interview_ready", "needs_detail", "not_yet_a_story"] as const) {
-      expect(cardBands.filter((b) => b === band)).toHaveLength(s.counts[band]);
+      expect(s.top.filter((c) => c.band === band)).toHaveLength(s.counts[band]);
     }
-    expect(headline(s.counts, s.total)).toBe(
-      "We found 3 experiences you could use in your interview. 1 is interview-ready, 1 needs more detail and 1 is not yet a story. " +
-      "Interviewers can only score what you can prove when asked, so let's build up the ones that matter most for this role.",
+    expect(headline({ interview_ready: 2, needs_detail: 4, not_yet_a_story: 3 }, 9, "Supply Chain Manager")).toBe(
+      "Here are the 9 experiences from your CV that best show what a Supply Chain Manager role needs. " +
+      "2 are ready to tell, 4 are almost there and 3 are worth building. In the next step we'll strengthen them, one at a time.",
     );
   });
 });

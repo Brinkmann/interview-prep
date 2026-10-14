@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerClaim, checkClaimsFor, claimQuestion, overlaps, saysWe, type ClaimDeps } from "../src/claims/check";
+import { answerClaim, checkClaimsFor, datesQuestion, OWNERSHIP_FALLBACK, overlaps, saysWe, type ClaimDeps } from "../src/claims/check";
 import { fakeSupabase } from "./fake-supabase";
 
 const now = new Date("2026-10-14T00:00:00Z");
@@ -36,11 +36,14 @@ describe("claim checks (AT-09)", () => {
         { label: "Warehouse Lead, Acme", start: "2019-03", end: "2021-08" },
         { label: "Dispatch Manager, Bolt", start: "2021-03", end: "present" },
       ],
-      flag: async () => [
-        { index: 1, type: "unlikely", figure_noun: "saving" },
-        { index: 2, type: "vague", figure_noun: null },
-        { index: 0, type: "vague", figure_noun: null }, // already an ownership check
-      ],
+      flag: async (_e, ownership) => {
+        expect(ownership).toEqual([0]);
+        return [
+          { index: 1, type: "unlikely", question: "That's a large saving. How was it measured, and what made it possible?" },
+          { index: 2, type: "vague", question: "What did you measure warehouse efficiency by, and roughly how much did it improve?" },
+          { index: 0, type: "vague", question: "Ignored: already an ownership check." },
+        ];
+      },
       modelId: "m", promptVersion: "check_claims@1",
     };
     return { deps, tables, client };
@@ -51,13 +54,21 @@ describe("claim checks (AT-09)", () => {
     const before = JSON.stringify(tables.experiences);
     expect(await checkClaimsFor(deps, "c1", now)).toEqual({ flagged: 4 });
     expect(tables.probes!.map((p) => [p.trigger, p.target_id, p.question])).toEqual([
-      ["inconsistent", "cv1", "Warehouse Lead, Acme (Mar 2019 to Aug 2021) and Dispatch Manager, Bolt (Mar 2021 to present) overlap. Were these roles at the same time, or is one date wrong?"],
-      ["ownership", "x1", "What was your personal part in this?"],
-      ["unlikely", "x2", "That's an unusually large saving. How was it measured, and what made it possible?"],
-      ["vague", "x3", "By how much, compared with what, and over what period?"],
+      ["inconsistent", "cv1", "Your roles at Warehouse Lead, Acme and Dispatch Manager, Bolt overlap from Mar 2021 to Aug 2021. Did you hold both at once, or is one date out?"],
+      ["ownership", "x1", OWNERSHIP_FALLBACK],
+      ["unlikely", "x2", "That's a large saving. How was it measured, and what made it possible?"],
+      ["vague", "x3", "What did you measure warehouse efficiency by, and roughly how much did it improve?"],
     ]);
     expect(JSON.stringify(tables.experiences)).toBe(before);
     expect(tables.evidence).toHaveLength(0);
+  });
+
+  it("lets the candidate mark a claim as fine as it is", async () => {
+    const { deps, tables, client } = setup();
+    await checkClaimsFor(deps, "c1", now);
+    const vague = tables.probes!.find((p) => p.trigger === "vague")!;
+    await answerClaim(client, "c1", { probeId: vague.id as string, answer: "", corrected: false, fine: true });
+    expect(vague).toMatchObject({ resulting_action: "confirmed_fine" });
   });
 
   it("records an explanation without altering the figure", async () => {
@@ -83,6 +94,7 @@ describe("claim checks (AT-09)", () => {
   it("treats 'we' without 'I' as an ownership question, and keeps the tone neutral", () => {
     expect(saysWe("We rolled out a new WMS")).toBe(true);
     expect(saysWe("I led our rollout")).toBe(false);
-    expect(claimQuestion("unlikely", { noun: "Amazing!!" })).toBe("That's an unusually large figure. How was it measured, and what made it possible?");
+    expect(datesQuestion({ label: "A", start: "2019-03", end: "2021-08" }, { label: "B", start: "2021-03", end: "2022-01" }, now))
+      .toBe("Your roles at A and B overlap from Mar 2021 to Aug 2021. Did you hold both at once, or is one date out?");
   });
 });

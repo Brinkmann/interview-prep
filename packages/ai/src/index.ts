@@ -6,3 +6,4 @@ export { MODELS, estimateCost, type Tier } from "./pricing";
 export { checkAnthropicConnection } from "./connection-check";
 export * from "./scoring";
 export * from "./guards";
+export type { SprintTurnInput } from "./tasks/next-sprint-question";

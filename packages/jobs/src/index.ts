@@ -3,7 +3,7 @@
 // Step results are stored by Inngest, so steps return ids and counts only, never content.
 import { createHmac } from "node:crypto";
 import { Inngest } from "inngest";
-import { flatters, modelFor, runTask, TASKS } from "@interview-prep/ai";
+import { flatters, modelFor, numberGuard, runTask, TASKS, unsupportedNumbers } from "@interview-prep/ai";
 import { recordJobRun, serviceClient } from "@interview-prep/db";
 import { deleteOriginal, extractAndRedact } from "./redaction/pipeline";
 import { checkClaimsFor, type ClaimDeps } from "./claims/check";
@@ -13,8 +13,8 @@ import { dueCandidates, purgeCandidate } from "./retention/purge";
 export { openExcerpt } from "./redaction/hold";
 export { adHash, looksTruncated } from "./job-ad";
 export { isRemovedMarker } from "./redaction/rules";
-export { EVIDENCE_FIELDS, evidenceVersion } from "./experiences/rating";
-export { headline, summarise, type Card } from "./experiences/summary";
+export { STORY_FIELDS, type Story } from "./experiences/rating";
+export { BAND_LABEL, headline, latestScores, strongestMaterial, type Card } from "./experiences/summary";
 
 export const inngest = new Inngest({ id: "interview-prep" });
 
@@ -107,16 +107,23 @@ export const holdsExpire = inngest.createFunction(
     }),
 );
 
+function coachingCheck(sources: string[]) {
+  const numbers = numberGuard(sources, (o: { strength: string | null; next_step: string | null }) => [o.strength ?? "", o.next_step ?? ""]);
+  return ((o: { strength: string | null; next_step: string | null }) =>
+    flatters(`${o.strength ?? ""} ${o.next_step ?? ""}`) ? "flattering wording" : numbers(o as never)) as never;
+}
+
 function experienceDeps(candidateId: string, job: string): ExperienceDeps {
   const ctx = { candidateId, job, recordRun: recordJobRun };
   return {
     db: serviceClient(),
     extract: (cvText) => runTask("extract_experiences", { cvText }, ctx),
     rank: async (jobAd, experiences) => (await runTask("rank_for_role", { jobAd, experiences }, ctx)).ranked,
-    score: (experience, evidence) => runTask("score_experience", {
-      experience,
-      evidence: evidence ? Object.fromEntries(Object.entries(evidence).filter(([, v]) => typeof v === "string")) as Record<string, string> : undefined,
-    }, ctx),
+    score: (experience, story) => runTask("score_experience", { experience, evidence: story }, {
+      ...ctx,
+      // Tone and number guards on the card's coaching lines (D-30).
+      check: coachingCheck([experience, ...Object.values(story ?? {})]),
+    }),
     modelIds: { extract: modelFor("extract_experiences"), rank: modelFor("rank_for_role"), score: modelFor("score_experience") },
     promptVersions: { extract: TASKS.extract_experiences.promptVersion, score: TASKS.score_experience.promptVersion },
   };
@@ -136,8 +143,11 @@ export const experiencesExtract = inngest.createFunction(
     const deps = () => experienceDeps(candidateId, "experiences.extract");
     const found = await step.run("extract", () => extractFromCv(deps(), candidateId));
     if (found.outcome !== "extracted") return { outcome: found.outcome };
-    await step.run("rank", () => rankForRole(deps(), candidateId));
-    await Promise.all(found.ids.map((id) => step.run(`score-${id}`, () => scoreOne(deps(), candidateId, id))));
+    const ranked = await step.run("rank", () => rankForRole(deps(), candidateId));
+    // Only the experiences chosen for this role are rated now (D-31); one the candidate
+    // adds later is rated when it is added.
+    const toRate = ranked.ids.length ? ranked.ids : found.ids;
+    await Promise.all(toRate.map((id) => step.run(`score-${id}`, () => scoreOne(deps(), candidateId, id))));
     await step.sendEvent("expectations", { name: EXPERIENCES_FOUND, data: { candidateId } });
     return { outcome: found.outcome, experiences: found.ids.length };
   },
@@ -148,7 +158,11 @@ export const experiencesRank = inngest.createFunction(
   { id: "experiences-rank", triggers: [{ event: ROLE_SAVED }], concurrency: { key: "event.data.candidateId", limit: 1 } },
   async ({ event, step }) => {
     const { candidateId } = event.data as { candidateId: string };
-    return step.run("rank", () => rankForRole(experienceDeps(candidateId, "experiences.rank"), candidateId));
+    const deps = () => experienceDeps(candidateId, "experiences.rank");
+    const ranked = await step.run("rank", () => rankForRole(deps(), candidateId));
+    // Newly chosen experiences get their first rating; rated ones are left unchanged.
+    await Promise.all(ranked.ids.map((id) => step.run(`score-${id}`, () => scoreOne(deps(), candidateId, id))));
+    return { ranked: ranked.ranked };
   },
 );
 
@@ -211,7 +225,17 @@ function claimDeps(candidateId: string): ClaimDeps {
   return {
     db: serviceClient(),
     jobDates: async (cvText) => (await runTask("claims_job_dates", { cvText }, ctx)).jobs,
-    flag: async (experiences) => (await runTask("check_claims", { experiences }, ctx)).flags,
+    flag: async (experiences, ownership) => (await runTask("check_claims", { experiences, ownership }, {
+      ...ctx,
+      // Tone guard, and the number guard against each claim's own text (D-35).
+      check: ((o: { flags: { index: number; question: string }[] }) => {
+        for (const f of o.flags) {
+          if (flatters(f.question)) return "flattering wording";
+          if (unsupportedNumbers(f.question, [experiences[f.index] ?? ""]).length) return "output contained a number not in the source";
+        }
+        return null;
+      }) as never,
+    })).flags,
     modelId: modelFor("check_claims"),
     promptVersion: TASKS.check_claims.promptVersion,
   };
@@ -237,9 +261,11 @@ export const functions = [
   connectionCheck, cvRedact, retentionPurge, holdsExpire, experiencesExtract, experiencesRank, experiencesScore,
   expectationsBuild, claimsCheck,
 ];
-export { evidenceNote, questionFor, STEPS, isStep, type StepId } from "./sprint/questions";
-export { parseAnswer, saveAnswer, skipStep, sprintItems, type ParsedFields, type SprintItem } from "./sprint/service";
-export { answerExpectation, expectationQuestion, type ExpectationAnswer } from "./expectations/answer";
+export {
+  confirmAnswer, finishStory, MAX_QUESTIONS, openStory, proposeAnswer, skipQuestion, sprintItems,
+  type Parse, type SprintItem, type Turn,
+} from "./sprint/service";
+export { answerExpectation, expectationQuestion, expectationVerdict, type ExpectationAnswer } from "./expectations/answer";
 export { answerClaim, type ClaimType } from "./claims/check";
 export { beforeAfter, summaryText } from "./experiences/before-after";
 export { locate } from "./experiences/spans";

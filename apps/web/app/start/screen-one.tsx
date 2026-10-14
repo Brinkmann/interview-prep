@@ -29,8 +29,6 @@ function removedSentence(categories: string[]): string {
   return `We removed ${n} ${n === 1 ? "thing" : "things"} you don't need for interview preparation: ${list}. We don't use ${n === 1 ? "it" : "them"}, and we delete ${n === 1 ? "it" : "them"} within 24 hours.`;
 }
 
-const box = { display: "block", width: "100%", margin: "0.5rem 0 1rem" } as const;
-
 export function ScreenOne({ candidateId, consented: initiallyConsented }: { candidateId: string; consented: boolean }) {
   const [consented, setConsented] = useState(initiallyConsented);
   const [agree, setAgree] = useState(false);
@@ -110,15 +108,30 @@ export function ScreenOne({ candidateId, consented: initiallyConsented }: { cand
     if (uploadId) setRemoved((await refresh(uploadId)).removed);
   }
 
+  // Welcome (D-29): what the app does, what to have ready, how long it takes, then consent.
   if (!consented) {
     return (
       <section>
+        <p className="lead">
+          Interviewers ask for real examples: what you did, what changed because of it, and how you know. Most CVs list the
+          work but not the stories behind it. In about 30 minutes we&apos;ll:
+        </p>
+        <ol>
+          <li>read the job ad to see what this role needs,</li>
+          <li>find the experiences in your CV that best show it,</li>
+          <li>help you turn the most important ones into stories you can tell with confidence,</li>
+          <li>check for gaps and for claims an interviewer is likely to question.</li>
+        </ol>
+        <div className="card">
+          <p><strong>Have ready:</strong> the job ad (copied from the listing) and your CV (PDF or Word).</p>
+          <p className="muted small">You can stop at any time and come back.</p>
+        </div>
         <p>Before you start, please read <a href="/privacy" target="_blank">how we handle your information</a>.</p>
         <label>
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> I have read it and I'm happy to continue
+          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> I have read it and I&apos;m happy to continue
         </label>
-        <p><button type="button" disabled={!agree} onClick={accept}>Continue</button></p>
-        {message && <p role="alert">{message}</p>}
+        <div className="actions"><button type="button" className="btn primary" disabled={!agree} onClick={accept}>Start</button></div>
+        {message && <p role="alert" className="alert">{message}</p>}
       </section>
     );
   }
@@ -128,41 +141,45 @@ export function ScreenOne({ candidateId, consented: initiallyConsented }: { cand
 
   return (
     <section>
-      <p>
-        We use these to show you how well your evidence matches this role. We only keep what helps you prepare.{" "}
-        <a href="/privacy" target="_blank">Privacy notice</a>
-      </p>
+      <div className={`card${adSaved ? "" : " current"}`}>
+        <h2 style={{ marginTop: 0 }}>1. Paste the job ad</h2>
+        <p className="muted small">Copy the full listing, including the duties and requirements. We use it to work out what this role needs.</p>
+        <textarea id="ad" aria-label="Job ad" rows={adSaved ? 4 : 10} value={jobAd} disabled={adSaved} onChange={(e) => setJobAd(e.target.value)} />
+        {!adSaved && (
+          <div className="actions"><button type="button" className="btn primary" disabled={busy || !jobAd.trim()} onClick={saveAd}>Save the job ad</button></div>
+        )}
+        {adSaved && truncated && (
+          <p role="alert" className="alert">This job ad looks cut off. If there is more, paste the full ad so we don&apos;t miss anything the role needs.</p>
+        )}
+        {adSaved && !truncated && <p className="small muted">Saved.</p>}
+      </div>
 
-      <label htmlFor="ad">Paste the job ad</label>
-      <textarea id="ad" rows={10} value={jobAd} disabled={adSaved} onChange={(e) => setJobAd(e.target.value)} style={box} />
-      {!adSaved && <button type="button" disabled={busy || !jobAd.trim()} onClick={saveAd}>Save job ad</button>}
-      {adSaved && truncated && (
-        <p role="alert">This job ad looks cut off. If there is more, paste the full ad so we don't miss anything the role needs.</p>
-      )}
-      {adSaved && <p>Job ad saved.</p>}
+      <div className={`card${adSaved && !removed ? " current" : ""}`} style={{ opacity: adSaved ? 1 : 0.55 }}>
+        <h2 style={{ marginTop: 0 }}>2. Upload your CV</h2>
+        <p className="muted small">PDF or Word. We use it to find the experiences that show what you bring.</p>
+        <input id="cv" aria-label="Your CV" type="file" accept=".pdf,.docx" disabled={busy || !adSaved} onChange={upload} />
+        <p className="small muted">We remove personal details an employer shouldn&apos;t use, and we never keep your original file.</p>
 
-      <label htmlFor="cv">Upload your CV</label>
-      <input id="cv" type="file" accept=".pdf,.docx" disabled={busy} onChange={upload} style={box} />
-
-      {removed && (
-        <div role="status">
-          <p>
-            {removedSentence(current.map((r) => r.category))}
-            {restorable.length > 0 && " Restore anything we removed by mistake."}
-          </p>
-          {restorable.length > 0 && (
-            <ul>
-              {restorable.map((r) => (
-                <li key={r.id}>
-                  “{r.excerpt}” <button type="button" onClick={() => restore(r.id)}>Restore</button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {adSaved && <p><a href="/found">See what we found in your CV</a></p>}
-        </div>
-      )}
+        {removed && (
+          <div role="status">
+            <p>
+              {removedSentence(current.map((r) => r.category))}
+              {restorable.length > 0 && " Restore anything we removed by mistake."}
+            </p>
+            {restorable.length > 0 && (
+              <ul>
+                {restorable.map((r) => (
+                  <li key={r.id}>
+                    &ldquo;{r.excerpt}&rdquo; <button type="button" className="btn link" onClick={() => restore(r.id)}>Restore</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
       {message && <p role="status">{message}</p>}
+      {removed && adSaved && <p className="next"><a className="btn primary" href="/found">Next: find your strongest material</a></p>}
     </section>
   );
 }

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Dimension, Reason } from "@interview-prep/ai";
-import { evidenceVersion, guardRating, rate, type Evidence, type Rating } from "./rating";
+import { guardRating, rate, storyForScoring, type Evidence, type Rating } from "./rating";
 import { locate } from "./spans";
 
 // Screen 2 jobs. Every query filters on candidate_id; results returned to Inngest are
@@ -10,7 +10,10 @@ export interface ExperienceDeps {
   db: SupabaseClient;
   extract: (cvText: string) => Promise<{ graduate: boolean; experiences: { job_label: string; text: string }[] }>;
   rank: (jobAd: string, experiences: { job: string; text: string }[]) => Promise<{ index: number }[]>;
-  score: (experience: string, evidence: Evidence | null) => Promise<{ scores: Record<Dimension, number>; reasons: Reason[] }>;
+  // Returns coaching lines already checked by the tone and number guards.
+  score: (experience: string, story: Record<string, string> | undefined) => Promise<{
+    scores: Record<Dimension, number>; reasons: Reason[]; strength: string | null; next_step: string | null;
+  }>;
   modelIds: { extract: string; rank: string; score: string };
   promptVersions: { extract: string; score: string };
 }
@@ -68,7 +71,7 @@ export async function rankForRole(deps: ExperienceDeps, candidateId: string) {
   // In CV order, so the model sees each job's experiences together.
   const list = (exps.data as { id: string; job_label: string; original_text: string; source_span: string | null }[])
     .sort((a, b) => spanStart(a.source_span) - spanStart(b.source_span));
-  if (!role.data || !list.length) return { ranked: 0 };
+  if (!role.data || !list.length) return { ranked: 0, ids: [] as string[] };
 
   const ranked = await deps.rank(role.data.job_ad_text, list.map((e) => ({ job: e.job_label, text: e.original_text })));
   const order = [...new Set(ranked.map((r) => r.index).filter((i) => i >= 0 && i < list.length))].slice(0, 10);
@@ -79,7 +82,7 @@ export async function rankForRole(deps: ExperienceDeps, candidateId: string) {
       .eq("id", list[index]!.id).eq("candidate_id", candidateId);
     if (set.error) fail("Could not save ranking", set.error);
   }
-  return { ranked: order.length };
+  return { ranked: order.length, ids: order.map((i) => list[i]!.id) };
 }
 
 // experiences.score: rates one experience with its current evidence, under the rating guard.
@@ -97,21 +100,24 @@ export async function scoreOne(deps: ExperienceDeps, candidateId: string, experi
   if (prev.error) fail("Could not read score", prev.error);
 
   const evidence = ev.data as Evidence | null;
-  const version = evidenceVersion(evidence);
+  const answered = await db.from("probes").select("id").eq("candidate_id", candidateId).eq("target_id", experienceId)
+    .eq("trigger", "missing_field").eq("resulting_action", "saved");
+  if (answered.error) fail("Could not read answers", answered.error);
+  const version = answered.data.length;
   const previous: Rating | null = prev.data ? {
     scores: prev.data, overall: prev.data.overall, band: prev.data.band, reasons: prev.data.reasons,
     evidenceVersion: prev.data.evidence_version,
   } : null;
-  // Scoring runs only when an evidence field has changed (rating guard).
+  // Scoring runs only when the candidate has confirmed a new answer (rating guard).
   if (previous && version === previous.evidenceVersion) return { outcome: "unchanged" as const };
 
-  const out = await deps.score(exp.data.original_text, evidence);
+  const out = await deps.score(exp.data.original_text, storyForScoring(evidence));
   const next = guardRating(previous, rate(out.scores, out.reasons, version));
   if (!next) return { outcome: "discarded" as const };
 
   const saved = await db.from("scores").insert({
     candidate_id: candidateId, experience_id: experienceId, ...next.scores, overall: next.overall, band: next.band,
-    reasons: next.reasons, evidence_version: next.evidenceVersion,
+    reasons: next.reasons, evidence_version: next.evidenceVersion, strength: out.strength, next_step: out.next_step,
     source_type: version ? "candidate_answer" : "cv", model_id: deps.modelIds.score, prompt_version: deps.promptVersions.score,
   });
   if (saved.error) fail("Could not save score", saved.error);

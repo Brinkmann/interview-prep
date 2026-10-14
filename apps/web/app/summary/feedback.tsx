@@ -27,8 +27,8 @@ export function Feedback() {
       </fieldset>
       <label htmlFor="comment" style={{ display: "block", marginTop: "1rem" }}><strong>What would you change?</strong></label>
       <textarea id="comment" rows={4} value={comment} onChange={(e) => setComment(e.target.value)}
-        style={{ display: "block", width: "100%", margin: "0.5rem 0" }} />
-      <button type="button" disabled={!usefulness} onClick={send}>Send feedback</button>
+        />
+      <div className="actions"><button type="button" className="btn primary" disabled={!usefulness} onClick={send}>Send feedback</button></div>
       {message && <p role="alert">{message}</p>}
     </section>
   );

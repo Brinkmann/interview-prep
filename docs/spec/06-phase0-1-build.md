@@ -79,17 +79,17 @@ All model calls go through one function: `runTask(taskName, input)`.
 | `extract_experiences` | Small | Redacted CV text | Experiences with job label and exact source span | 2 |
 | `rank_for_role` | Medium | Experiences, job ad | Top 8 to 10 experiences for the sprint, with reason | 2, 3 |
 | `score_experience` | Medium | Experience, evidence fields | Five dimension scores (1 to 7) and reasons from the fixed list | 2, 3 |
-| `next_sprint_question` | Rules, then small | Evidence fields, persona | Next missing field in the fixed order, phrased in plain words (graduate framing for PE-1) | 3 |
+| `next_sprint_question` | Medium | Experience, story so far, job ad, persona | The next question for this story, built on what the CV already says, or none when the story is complete; at most four per story (graduate framing for PE-1, D-32) | 3 |
 | `parse_sprint_answer` | Small | Candidate's answer | Evidence fields; flags any number not labelled exact or estimate | 3 |
 | `build_expectations` | Medium | Job ad, matched occupation profile | 5 to 10 expected areas, each labelled in_ad or typical, matched to experiences | 4 |
 | `check_claims` | Rules plus small and medium | Experiences, job dates | Vague, inconsistent (date overlap by rule), unlikely and ownership flags, each with one question | 5 |
 
-**Fixed sprint question order:** outcome, then baseline and new value, then timeframe, then measure, then personal versus team role, then verifier. Only missing fields are asked.
+**Sprint questions (D-32):** written for each story, starting from what the CV already says, in order of importance: what changed, the candidate's part, how they know, then the detail an interviewer would probe. Only what is missing and matters for that story is asked, at most four questions per story.
 
 ## Scoring rules
 
 - Phase 1 dimensions and weights: outcome evidence 30%, specificity 20%, ownership 20%, credibility 20%, action reasoning 10%. Relevance and level calibration are added in Phase 2, once full role decoding exists.
-- Overall score is the weighted mean, rounded to a whole number. Bands: 6 to 7 Interview-ready; 4 to 5 Needs detail; 1 to 3 Not yet a story.
+- Overall score is the weighted mean, rounded to a whole number. Bands: 6 to 7 Ready to tell; 4 to 5 Almost there; 1 to 3 Worth building (D-30). Stored band values are unchanged (interview_ready, needs_detail, not_yet_a_story); only the labels shown change.
 - Fixed reasons, each with a plain-language label: no_result ("no result"), says_we ("says 'we' not 'I'"), no_timeframe ("no timeframe"), no_baseline ("no starting point"), no_measure ("not measured"), duty_not_outcome ("a duty, not an outcome"), unverified ("no one named who could confirm it"), vague_claim ("too vague to score").
 
 ## Integrity guards
@@ -102,8 +102,8 @@ These enforce the approved rules in code, not only in prompts.
 | Estimate guard | Estimates always labelled | A number cannot be saved until marked exact or estimate; estimates require a basis |
 | Rating guard | No rating rise without new evidence | Scoring runs only when an evidence field changes; a higher band without a new field is discarded |
 | Skip guard | Skipped is never "no" | Unanswered questions stored as unanswered; expectations stay not_found until answered |
-| Edit guard | Never change the candidate's words unseen | Evidence notes are shown for confirmation before saving; original CV text is never modified |
-| Tone guard | Honest, not flattering | Interface copy comes from approved templates; model phrasing is checked against a banned-praise list |
+| Edit guard | Never change the candidate's words unseen | The updated story is shown with "Did we get this right?" before saving; original CV text is never modified |
+| Tone guard | Honest, not flattering | Fixed interface copy comes from approved wording; every model-written question or hint shown to the candidate is checked against a banned-praise list and rejected and retried if it fails (D-32) |
 
 ## Calibration set (AI-only, D-16)
 
@@ -124,13 +124,13 @@ Built and checked entirely by AI during development, stored in `packages/eval`, 
 | AT-02 | PDF and DOCX CVs parse; a corrupt file shows a plain error and a suggested alternative | US-02 |
 | AT-03 | A truncated job ad triggers the warning | Screen 1 |
 | AT-04 | Every experience has a source span; the Screen 2 headline counts match the stored bands | US-16 |
-| AT-05 | The sprint asks only missing fields, in the fixed order; skipped questions are stored as unanswered | US-17, US-45 |
+| AT-05 | The sprint asks at most four questions per story, none for a detail the story already has; skipped questions are stored as unanswered | US-17, US-45 |
 | AT-06 | An unlabelled number cannot be saved; an estimate requires a basis; a seeded invented number is rejected | US-18 |
 | AT-07 | A graduate persona receives study, volunteer and part-time framing | US-17 |
 | AT-08 | Expectations carry an in_ad or typical label; yes adds to the sprint, no records a gap, not sure stays open | US-44 |
 | AT-09 | Date overlaps are always flagged; an unlikely figure prompts a method question and is never altered by the app; "we" claims prompt an ownership question | US-46 |
 | AT-10 | A rating never rises without a new evidence field | Approved rules |
-| AT-11 | Summary before and after counts are correct; feedback is saved | Screen 6 |
+| AT-11 | Summary before and after counts cover the same stories, with added stories reported separately; feedback is saved | Screen 6 |
 | AT-12 | Every cross-candidate read and write attempt fails | Phase 0 |
 | AT-13 | Retention purge removes all personal rows and files on the retention date and immediately on request | US-06 |
 
