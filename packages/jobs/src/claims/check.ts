@@ -7,15 +7,27 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type ClaimType = "vague" | "inconsistent" | "unlikely" | "ownership";
 export interface Job { label: string; start: string | null; end: string | null }
 
-// Months since year 0. A year alone is read narrowly (start in December, end in January),
-// so only clear overlaps are flagged.
-function toMonth(value: string | null, edge: "start" | "end", now: Date): number | null {
+// Months since year 0.
+const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+// Accepts "2021-03", "2021-3", "March 2021", "Mar 2021", "03/2021", "2021" and "present".
+export function toMonth(value: string | null, edge: "start" | "end", now: Date): number | null {
   if (!value) return null;
-  if (/^present$/i.test(value.trim())) return now.getFullYear() * 12 + now.getMonth();
-  const m = /^(\d{4})(?:-(\d{1,2}))?$/.exec(value.trim());
-  if (!m) return null;
-  const month = m[2] ? Number(m[2]) - 1 : edge === "start" ? 11 : 0;
-  return Number(m[1]) * 12 + month;
+  const v = value.trim().toLowerCase();
+  if (/^(present|current|now|to date|ongoing)$/.test(v)) return now.getFullYear() * 12 + now.getMonth();
+  let m = /^(\d{4})[-/.](\d{1,2})$/.exec(v);
+  if (m) return Number(m[1]) * 12 + Number(m[2]) - 1;
+  m = /^(\d{1,2})[-/.](\d{4})$/.exec(v);
+  if (m) return Number(m[2]) * 12 + Number(m[1]) - 1;
+  m = /^([a-z]+)\.?,?\s+(\d{4})$/.exec(v);
+  if (m) {
+    const month = MONTH_NAMES.indexOf(m[1]!.slice(0, 3));
+    if (month >= 0) return Number(m[2]) * 12 + month;
+  }
+  m = /^(\d{4})$/.exec(v);
+  // A year alone is read narrowly (start in December, end in January), so only clear overlaps are flagged.
+  if (m) return Number(m[1]) * 12 + (edge === "start" ? 11 : 0);
+  return null;
 }
 
 export function overlaps(jobs: Job[], now = new Date()): [Job, Job][] {
@@ -38,8 +50,8 @@ export function saysWe(text: string): boolean {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function showDate(v: string | null): string {
   if (!v) return "?";
-  if (/^present$/i.test(v)) return "present";
-  const m = /^(\d{4})-(\d{1,2})$/.exec(v);
+  if (/^(present|current|now|to date|ongoing)$/i.test(v.trim())) return "present";
+  const m = /^(\d{4})-(\d{1,2})$/.exec(v.trim());
   return m ? `${MONTHS[Number(m[2]) - 1]} ${m[1]}` : v;
 }
 

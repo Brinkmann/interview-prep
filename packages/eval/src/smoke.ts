@@ -69,7 +69,11 @@ if (exps.length) {
 }
 
 const dates = await attempt("claims_job_dates", () => runTask("claims_job_dates", { cvText: CV }, ctx()));
-if (dates) expect("the March to August 2021 overlap is flagged by rule (AT-09)", overlaps(dates.jobs).length === 1);
+if (dates) {
+  // Synthetic CV, so the dates can be shown to diagnose a failure.
+  console.log(`job dates read: ${JSON.stringify(dates.jobs.map((j) => [j.start, j.end]))}`);
+  expect("the March to August 2021 overlap is flagged by rule (AT-09)", overlaps(dates.jobs).length === 1);
+}
 
 const item: SprintItem = {
   id: "x", job: "Operations Manager", text: "Responsible for a team of 12 in the dispatch centre.", rank: 1,
