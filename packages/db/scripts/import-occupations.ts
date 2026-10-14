@@ -1,7 +1,7 @@
 // Imports O*NET (text release, already unzipped into ONET_DIR) and English ESCO
 // (from the ESCO API) into public.occupations. Run by the "Import occupations" workflow.
 // Reference data only: no personal information.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
 
@@ -16,7 +16,15 @@ function readTsv(path: string): Record<string, string>[] {
 export function loadOnet(dir: string): Occupation[] {
   const occ = readTsv(join(dir, "Occupation Data.txt"));
   const tasks = readTsv(join(dir, "Task Statements.txt"));
-  const skills = readTsv(join(dir, "Skills.txt")).filter((r) => r["Scale ID"] === "IM");
+  // Release 31 split "Skills.txt" into essential and transferable skills; read whichever exist.
+  const skillFiles = ["Skills.txt", "Essential Skills.txt", "Transferable Skills.txt"].map((f) => join(dir, f)).filter(existsSync);
+  if (!skillFiles.length) throw new Error("No O*NET skills file found");
+  const skills = skillFiles.flatMap((f) => {
+    const rows = readTsv(f);
+    console.log(`${f.split("/").pop()}: columns ${Object.keys(rows[0] ?? {}).join(" | ")}`);
+    // Importance ratings only, where the file carries several scales.
+    return rows.filter((r) => !("Scale ID" in r) || r["Scale ID"] === "IM");
+  });
   const byCode = new Map<string, Occupation>();
   for (const r of occ) {
     byCode.set(r["O*NET-SOC Code"]!, {
@@ -30,7 +38,8 @@ export function loadOnet(dir: string): Occupation[] {
   const ranked = new Map<string, { name: string; value: number }[]>();
   for (const s of skills) {
     const list = ranked.get(s["O*NET-SOC Code"]!) ?? [];
-    list.push({ name: s["Element Name"]!, value: Number(s["Data Value"]) });
+    const name = s["Element Name"] ?? s["Skill"] ?? s["Title"];
+    if (name && !list.some((l) => l.name === name)) list.push({ name, value: Number(s["Data Value"] ?? 0) || 0 });
     ranked.set(s["O*NET-SOC Code"]!, list);
   }
   for (const [code, list] of ranked) {
@@ -52,17 +61,27 @@ async function getJson(url: string): Promise<any> {
 }
 
 export async function loadEsco(): Promise<Occupation[]> {
-  const uris: string[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await getJson(`${ESCO}/search?type=occupation&language=en&limit=100&offset=${offset}`);
-    const results = page?._embedded?.results ?? [];
-    uris.push(...results.map((r: { uri: string }) => r.uri));
-    if (results.length < 100) break;
+  const uris = new Set<string>();
+  // ESCO's offset is a page number, not a row number. Stop at a short or repeated page.
+  for (let pageNo = 0; pageNo < 200; pageNo++) {
+    const page = await getJson(`${ESCO}/search?type=occupation&language=en&limit=100&offset=${pageNo}`);
+    const results: { uri: string }[] = page?._embedded?.results ?? [];
+    const before = uris.size;
+    results.forEach((r) => uris.add(r.uri));
+    if (results.length < 100 || uris.size === before) break;
   }
+  console.log(`esco: ${uris.size} occupations listed`);
+  const list = [...uris];
   const out: Occupation[] = [];
-  for (let i = 0; i < uris.length; i += 8) {
-    const batch = await Promise.all(uris.slice(i, i + 8).map(async (uri) => {
-      const o = await getJson(`${ESCO}/resource/occupation?uri=${encodeURIComponent(uri)}&language=en`);
+  let failed = 0;
+  for (let i = 0; i < list.length; i += 8) {
+    const batch = await Promise.all(list.slice(i, i + 8).map(async (uri): Promise<Occupation | null> => {
+      // A few ESCO records fail on ESCO's side; skip them rather than lose the whole import.
+      const o = await getJson(`${ESCO}/resource/occupation?uri=${encodeURIComponent(uri)}&language=en`).catch(() => null);
+      if (!o) {
+        failed++;
+        return null;
+      }
       return {
         scheme: "esco" as const,
         code: uri.split("/").pop()!,
@@ -73,8 +92,10 @@ export async function loadEsco(): Promise<Occupation[]> {
         skills: (o._links?.hasEssentialSkill ?? []).map((s: { title: string }) => s.title).slice(0, 20),
       };
     }));
-    out.push(...batch.filter((o) => o.title));
+    for (const o of batch) if (o?.title) out.push(o);
   }
+  console.log(`esco: ${failed} records could not be read`);
+  if (failed > list.length * 0.05) throw new Error(`Too many ESCO records failed (${failed} of ${list.length})`);
   return out;
 }
 

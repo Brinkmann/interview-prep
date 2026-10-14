@@ -11,7 +11,8 @@
     "test": "vitest run --passWithNoTests",
     "build-set": "tsx src/build.ts",
     "calibrate": "tsx src/run.ts",
-    "cost-report": "tsx src/cost-report.ts"
+    "cost-report": "tsx src/cost-report.ts",
+    "smoke": "tsx src/smoke.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
@@ -20,6 +21,7 @@
     "vitest": "5.0.4"
   },
   "dependencies": {
-    "@interview-prep/ai": "workspace:*"
+    "@interview-prep/ai": "workspace:*",
+    "@interview-prep/jobs": "workspace:*"
   }
 }

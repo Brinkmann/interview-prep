@@ -27,7 +27,7 @@ The whole journey should take about 30 minutes, and the candidate can stop and r
 
 **After upload** the app shows what it removed:
 
-> *We removed 3 things you don't need for interview preparation: your photo, your date of birth and a line about your health. We haven't stored them. Restore anything we removed by mistake.*
+> *We removed 3 things you don't need for interview preparation: your photo, your date of birth and a line about your health. We don't use them, and we delete them within 24 hours (D-27). Restore anything we removed by mistake.*
 
 **Rules:** warn if the job ad looks cut off; if the CV cannot be read, say so plainly and suggest a different file type.
 

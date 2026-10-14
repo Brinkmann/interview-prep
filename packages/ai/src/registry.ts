@@ -1,6 +1,11 @@
 import type { z } from "zod";
 import { MODELS, type ModelId, type Tier } from "./pricing";
 import { calibrationScoreStatement, calibrationWriteStatement } from "./tasks/calibration";
+import { buildExpectations } from "./tasks/build-expectations";
+import { checkClaims, claimsJobDates } from "./tasks/check-claims";
+import { extractExperiences } from "./tasks/extract-experiences";
+import { parseSprintAnswer } from "./tasks/parse-sprint-answer";
+import { rankForRole } from "./tasks/rank-for-role";
 import { redactSensitive } from "./tasks/redact-sensitive";
 import { scoreExperience } from "./tasks/score-experience";
 
@@ -20,7 +25,13 @@ export interface TaskDefinition<In, Out extends z.ZodType> {
 
 export const TASKS = {
   redact_sensitive: redactSensitive,
+  extract_experiences: extractExperiences,
+  rank_for_role: rankForRole,
   score_experience: scoreExperience,
+  parse_sprint_answer: parseSprintAnswer,
+  build_expectations: buildExpectations,
+  claims_job_dates: claimsJobDates,
+  check_claims: checkClaims,
   calibration_write_statement: calibrationWriteStatement,
   calibration_score_statement: calibrationScoreStatement,
 } as const;

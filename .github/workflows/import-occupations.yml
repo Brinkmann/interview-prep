@@ -5,8 +5,12 @@ name: Import occupations
 on:
   workflow_dispatch:
     inputs:
+      onet:
+        description: Import O*NET
+        type: boolean
+        default: true
       esco:
-        description: Also import ESCO (slower, about 3,000 API calls)
+        description: Import ESCO (slower, about 3,000 API calls)
         type: boolean
         default: true
 
@@ -22,15 +26,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Download O*NET
+        if: ${{ inputs.onet }}
         run: |
-          zip=$(curl -fsSL https://www.onetcenter.org/database.html | grep -oE 'dl_files/database/db_[0-9]+_[0-9]+_text\.zip' | head -1)
-          if [ -z "$zip" ]; then echo "::error::Could not find the O*NET text download link."; exit 1; fi
-          echo "Using $zip"
-          curl -fsSL "https://www.onetcenter.org/$zip" -o onet.zip
-          mkdir onet && unzip -q -j onet.zip -d onet
+          # The release number changes: read it from the newest download on the database page,
+          # then fetch the tab-separated text edition of that release.
+          release=$(curl -fsSL https://www.onetcenter.org/database.html | grep -oE 'db_[0-9]+_[0-9]+_[a-z]+\.zip' | sed -E 's/_[a-z]+\.zip$//' | sort -uV | tail -1)
+          if [ -z "$release" ]; then echo "::error::Could not find the current O*NET release."; exit 1; fi
+          echo "Using $release"
+          curl -fsSL "https://www.onetcenter.org/dl_files/database/${release}_text.zip" -o onet.zip
+          mkdir onet && unzip -q -j onet.zip -d onet && ls onet | head -50
       - name: Import
         env:
           DATABASE_URL: ${{ secrets.STAGING_DB_URL }}
-          ONET_DIR: ${{ github.workspace }}/onet
+          ONET_DIR: ${{ inputs.onet && format('{0}/onet', github.workspace) || '' }}
           IMPORT_ESCO: ${{ inputs.esco }}
         run: pnpm --filter @interview-prep/db import-occupations

@@ -29,3 +29,7 @@ jobs:
             exit 1
           fi
           pnpm --filter @interview-prep/eval calibrate
+      - name: Phase 1 smoke run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: pnpm --filter @interview-prep/eval smoke

@@ -116,6 +116,9 @@ importers:
       '@interview-prep/ai':
         specifier: workspace:*
         version: link:../ai
+      '@interview-prep/jobs':
+        specifier: workspace:*
+        version: link:../jobs
     devDependencies:
       '@types/node':
         specifier: 22.20.5

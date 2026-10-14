@@ -1,4 +1,4 @@
-import { adHash, looksTruncated } from "@interview-prep/jobs";
+import { adHash, inngest, looksTruncated, ROLE_SAVED } from "@interview-prep/jobs";
 import { hasConsented } from "@/lib/consent";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -18,5 +18,6 @@ export async function POST(request: Request) {
     .insert({ candidate_id: data.user.id, job_ad_text: jobAd.trim(), ad_hash: adHash(jobAd), truncation_warning: truncated })
     .select("id").single();
   if (error) return Response.json({ error: "could_not_record" }, { status: 500 });
+  await inngest.send({ name: ROLE_SAVED, data: { candidateId: data.user.id } });
   return Response.json({ targetRoleId: role.id, truncated });
 }

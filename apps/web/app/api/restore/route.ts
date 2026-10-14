@@ -1,4 +1,4 @@
-import { openExcerpt } from "@interview-prep/jobs";
+import { CV_RESTORED, inngest, openExcerpt } from "@interview-prep/jobs";
 import { supabaseServer } from "@/lib/supabase/server";
 
 // US-04 / D-27: puts back a line that redaction removed by mistake, within 24 hours.
@@ -24,5 +24,7 @@ export async function POST(request: Request) {
   if (updated.error) return Response.json({ error: "could_not_restore" }, { status: 500 });
   await supabase.from("redaction_log").update({ restored: true }).eq("id", logId);
   await supabase.from("redaction_holds").delete().eq("id", hold.id);
+  // Experiences are found again from the restored text, unless the sprint has started.
+  await inngest.send({ name: CV_RESTORED, data: { candidateId: auth.user.id } });
   return Response.json({ ok: true });
 }
