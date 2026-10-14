@@ -12,13 +12,15 @@ export function fakeSupabase(files: Map<string, Uint8Array>) {
   function query(table: string) {
     const filters: [string, unknown][] = [];
     const notNull: string[] = [];
+    const inFilters: [string, unknown[]][] = [];
+    const isNull: string[] = [];
     let op: "select" | "update" | "delete" | "insert" = "select";
     let patch: Row = {};
     let inserted: Row[] = [];
     let limit = Infinity;
     let sort: [string, boolean] | null = null;
     const rows = () => {
-      const found = tables[table]!.filter((r) => filters.every(([k, v]) => r[k] === v) && notNull.every((k) => r[k] != null));
+      const found = tables[table]!.filter((r) => filters.every(([k, v]) => r[k] === v) && notNull.every((k) => r[k] != null) && inFilters.every(([k, vs]) => vs.includes(r[k])) && isNull.every((k) => r[k] == null));
       if (sort) {
         const [k, asc] = sort;
         found.sort((a, b) => (String(a[k]) < String(b[k]) ? -1 : String(a[k]) > String(b[k]) ? 1 : 0) * (asc ? 1 : -1));
@@ -38,8 +40,9 @@ export function fakeSupabase(files: Map<string, Uint8Array>) {
     const q: any = {
       select: () => q,
       eq: (k: string, v: unknown) => (filters.push([k, v]), q),
+      in: (k: string, vs: unknown[]) => (inFilters.push([k, vs]), q),
       not: (k: string, _op: "is", _v: null) => (notNull.push(k), q),
-      is: (k: string, v: unknown) => (filters.push([k, v ?? undefined]), q),
+      is: (k: string, _v: null) => (isNull.push(k), q),
       order: (k: string, o?: { ascending?: boolean }) => ((sort = [k, o?.ascending ?? true]), q),
       limit: (n: number) => ((limit = n), q),
       maybeSingle: async () => {

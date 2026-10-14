@@ -3,9 +3,10 @@
 // Step results are stored by Inngest, so steps return ids and counts only, never content.
 import { createHmac } from "node:crypto";
 import { Inngest } from "inngest";
-import { modelFor, runTask, TASKS } from "@interview-prep/ai";
+import { flatters, modelFor, runTask, TASKS } from "@interview-prep/ai";
 import { recordJobRun, serviceClient } from "@interview-prep/db";
 import { deleteOriginal, extractAndRedact } from "./redaction/pipeline";
+import { checkClaimsFor, type ClaimDeps } from "./claims/check";
 import { buildForRole, type ExpectationDeps } from "./expectations/build";
 import { extractFromCv, rankForRole, scoreOne, type ExperienceDeps } from "./experiences/pipeline";
 import { dueCandidates, purgeCandidate } from "./retention/purge";
@@ -180,7 +181,11 @@ function expectationDeps(candidateId: string): ExpectationDeps {
       return ids.map((id) => rows.data.find((r) => r.id === id)!).filter(Boolean)
         .map((r) => ({ ...r, description: r.description ?? "" }));
     },
-    build: (input) => runTask("build_expectations", input, { candidateId, job: "expectations.build", recordRun: recordJobRun }),
+    build: (input) => runTask("build_expectations", input, {
+      candidateId, job: "expectations.build", recordRun: recordJobRun,
+      // Tone guard: area names are shown to the candidate, so no praise words.
+      check: ((out: { areas: { area: string }[] }) => out.areas.some((a) => flatters(a.area)) ? "flattering wording" : null) as never,
+    }),
     modelId: modelFor("build_expectations"),
     promptVersion: TASKS.build_expectations.promptVersion,
   };
@@ -200,6 +205,26 @@ export const expectationsBuild = inngest.createFunction(
   },
 );
 
+function claimDeps(candidateId: string): ClaimDeps {
+  const ctx = { candidateId, job: "claims.check", recordRun: recordJobRun };
+  return {
+    db: serviceClient(),
+    jobDates: async (cvText) => (await runTask("claims_job_dates", { cvText }, ctx)).jobs,
+    flag: async (experiences) => (await runTask("check_claims", { experiences }, ctx)).flags,
+    modelId: modelFor("check_claims"),
+    promptVersion: TASKS.check_claims.promptVersion,
+  };
+}
+
+// claims.check (Screen 5): after experiences are found.
+export const claimsCheck = inngest.createFunction(
+  { id: "claims-check", triggers: [{ event: EXPERIENCES_FOUND }], concurrency: { key: "event.data.candidateId", limit: 1 }, retries: 3 },
+  async ({ event, step }) => {
+    const { candidateId } = event.data as { candidateId: string };
+    return step.run("check", () => checkClaimsFor(claimDeps(candidateId), candidateId));
+  },
+);
+
 // Derived from the service secret so no extra key has to be managed.
 function redactionHashKey(): string {
   const secret = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -209,8 +234,10 @@ function redactionHashKey(): string {
 
 export const functions = [
   connectionCheck, cvRedact, retentionPurge, holdsExpire, experiencesExtract, experiencesRank, experiencesScore,
-  expectationsBuild,
+  expectationsBuild, claimsCheck,
 ];
 export { evidenceNote, questionFor, STEPS, isStep, type StepId } from "./sprint/questions";
 export { parseAnswer, saveAnswer, skipStep, sprintItems, type ParsedFields, type SprintItem } from "./sprint/service";
 export { answerExpectation, expectationQuestion, type ExpectationAnswer } from "./expectations/answer";
+export { answerClaim, type ClaimType } from "./claims/check";
+export { beforeAfter, summaryText } from "./experiences/before-after";
