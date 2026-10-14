@@ -1,4 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "compilerOptions": { "types": ["node"], "module": "ESNext", "target": "ES2022" },
+  "include": ["src", "tests"]
 }

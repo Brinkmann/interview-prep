@@ -4,3 +4,4 @@ export { runTask, TaskFailedError, type JobRun, type RunContext } from "./gatewa
 export { TASKS, modelFor, type TaskName, type TaskInput, type TaskOutput } from "./registry";
 export { MODELS, estimateCost, type Tier } from "./pricing";
 export { checkAnthropicConnection } from "./connection-check";
+export * from "./scoring";
