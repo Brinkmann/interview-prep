@@ -23,19 +23,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Download O*NET
         run: |
-          # The release number changes, so find the newest text-format zip on O*NET's pages.
-          zip=""
-          for page in database.html database/download.html dictionary.html; do
-            links=$(curl -fsSL "https://www.onetcenter.org/$page" | grep -oiE 'href="[^"]*\.zip"' | sed -E 's/^href="//I; s/"$//' || true)
-            echo "Zip links on $page:"; echo "$links" | head -20
-            zip=$(echo "$links" | grep -iE 'text\.zip$' | sort -V | tail -1)
-            [ -n "$zip" ] && break
-          done
-          if [ -z "$zip" ]; then echo "::error::Could not find the O*NET text download link."; exit 1; fi
-          case "$zip" in http*) url="$zip" ;; /*) url="https://www.onetcenter.org$zip" ;; *) url="https://www.onetcenter.org/$zip" ;; esac
-          echo "Using $url"
-          curl -fsSL "$url" -o onet.zip
-          mkdir onet && unzip -q -j onet.zip -d onet
+          # The release number changes: read it from the newest download on the database page,
+          # then fetch the tab-separated text edition of that release.
+          release=$(curl -fsSL https://www.onetcenter.org/database.html | grep -oE 'db_[0-9]+_[0-9]+_[a-z]+\.zip' | sed -E 's/_[a-z]+\.zip$//' | sort -uV | tail -1)
+          if [ -z "$release" ]; then echo "::error::Could not find the current O*NET release."; exit 1; fi
+          echo "Using $release"
+          curl -fsSL "https://www.onetcenter.org/dl_files/database/${release}_text.zip" -o onet.zip
+          mkdir onet && unzip -q -j onet.zip -d onet && ls onet | head -50
       - name: Import
         env:
           DATABASE_URL: ${{ secrets.STAGING_DB_URL }}

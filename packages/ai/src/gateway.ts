@@ -22,6 +22,9 @@ export interface RunContext {
   job: string;
   recordRun: (run: JobRun) => Promise<void>;
   client?: Pick<Anthropic, "messages">;
+  // Integrity guard applied after schema validation; a returned reason rejects the
+  // output and it is retried once, like invalid output (for example the number guard).
+  check?: (output: never) => string | null;
 }
 
 export class TaskFailedError extends Error {
@@ -87,7 +90,11 @@ export async function runTask<N extends TaskName>(
       continue;
     }
 
-    const parsed = parseOutput(response, task.output);
+    let parsed = parseOutput(response, task.output);
+    if (parsed.ok && ctx.check) {
+      const rejected = ctx.check(parsed.data as never);
+      if (rejected) parsed = { ok: false, reason: rejected };
+    }
     await ctx.recordRun({
       candidate_id: ctx.candidateId,
       job: ctx.job,
