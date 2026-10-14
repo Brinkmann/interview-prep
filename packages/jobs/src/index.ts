@@ -172,3 +172,5 @@ function redactionHashKey(): string {
 export const functions = [
   connectionCheck, cvRedact, retentionPurge, holdsExpire, experiencesExtract, experiencesRank, experiencesScore,
 ];
+export { evidenceNote, questionFor, STEPS, isStep, type StepId } from "./sprint/questions";
+export { parseAnswer, saveAnswer, skipStep, sprintItems, type ParsedFields, type SprintItem } from "./sprint/service";

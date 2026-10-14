@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { MODELS, type ModelId, type Tier } from "./pricing";
 import { calibrationScoreStatement, calibrationWriteStatement } from "./tasks/calibration";
 import { extractExperiences } from "./tasks/extract-experiences";
+import { parseSprintAnswer } from "./tasks/parse-sprint-answer";
 import { rankForRole } from "./tasks/rank-for-role";
 import { redactSensitive } from "./tasks/redact-sensitive";
 import { scoreExperience } from "./tasks/score-experience";
@@ -25,6 +26,7 @@ export const TASKS = {
   extract_experiences: extractExperiences,
   rank_for_role: rankForRole,
   score_experience: scoreExperience,
+  parse_sprint_answer: parseSprintAnswer,
   calibration_write_statement: calibrationWriteStatement,
   calibration_score_statement: calibrationScoreStatement,
 } as const;
