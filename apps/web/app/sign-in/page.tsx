@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 // D-25: sign in with an emailed one-time code or with Google. No passwords.
+// Until custom email sending is set up, Supabase's standard email carries a link rather
+// than a code, so both are accepted; the link returns through /auth/callback.
 export default function SignIn() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -17,7 +19,10 @@ export default function SignIn() {
     e.preventDefault();
     setBusy(true);
     setMessage(null);
-    const { error } = await supabaseBrowser().auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+    const { error } = await supabaseBrowser().auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
     setBusy(false);
     if (error) return setMessage("We could not send a code to that address. Check it and try again.");
     setStage("code");
@@ -52,7 +57,7 @@ export default function SignIn() {
         </form>
       ) : (
         <form onSubmit={verify}>
-          <p>We sent a 6-digit code to {email}.</p>
+          <p>We sent a sign-in email to {email}. Open the link in it on this device, or type the code if the email shows one.</p>
           <label htmlFor="code">Code</label>
           <input id="code" inputMode="numeric" autoComplete="one-time-code" required value={code}
             onChange={(e) => setCode(e.target.value)} style={{ display: "block", width: "100%", margin: "0.5rem 0 1rem" }} />
