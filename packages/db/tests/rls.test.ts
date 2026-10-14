@@ -58,7 +58,7 @@ async function insert(client: pg.ClientBase, table: string, row: Record<string, 
 async function seedCandidate(): Promise<Ids> {
   const id = randomUUID();
   await db.query("insert into auth.users (id, email) values ($1, $2)", [id, `${id}@example.test`]);
-  await db.query("insert into public.candidates (id) values ($1)", [id]);
+  // The sign-up trigger creates the candidate record.
   const ids: Partial<Ids> = { candidate: id };
   for (const t of PERSONAL) ids[t] = await insert(db, t, rowFor(t, id, ids));
   await db.query(
@@ -207,6 +207,13 @@ describe("AT-12: candidate A cannot touch candidate B's data", () => {
       expect(await as(A.candidate, (c) =>
         rowCount(c.query("select 1 from storage.objects where name like $1", [`${A.candidate}/%`])))).toBe(1);
     });
+  });
+});
+
+describe("Sign-up", () => {
+  it("creates exactly one candidate record for each new user", async () => {
+    const r = await db.query("select count(*)::int as n from public.candidates where id = $1", [A.candidate]);
+    expect(r.rows[0].n).toBe(1);
   });
 });
 
