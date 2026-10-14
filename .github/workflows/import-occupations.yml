@@ -1,0 +1,36 @@
+name: Import occupations
+
+# Loads O*NET and English ESCO into staging's shared occupations table (Screen 4).
+# Reference data only. Run by hand; safe to re-run (rows are updated in place).
+on:
+  workflow_dispatch:
+    inputs:
+      esco:
+        description: Also import ESCO (slower, about 3,000 API calls)
+        type: boolean
+        default: true
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download O*NET
+        run: |
+          zip=$(curl -fsSL https://www.onetcenter.org/database.html | grep -oE 'dl_files/database/db_[0-9]+_[0-9]+_text\.zip' | head -1)
+          if [ -z "$zip" ]; then echo "::error::Could not find the O*NET text download link."; exit 1; fi
+          echo "Using $zip"
+          curl -fsSL "https://www.onetcenter.org/$zip" -o onet.zip
+          mkdir onet && unzip -q -j onet.zip -d onet
+      - name: Import
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DB_URL }}
+          ONET_DIR: ${{ github.workspace }}/onet
+          IMPORT_ESCO: ${{ inputs.esco }}
+        run: pnpm --filter @interview-prep/db import-occupations
