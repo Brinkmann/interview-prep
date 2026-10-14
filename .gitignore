@@ -11,3 +11,4 @@ next-env.d.ts
 !.env.example
 packages/db/supabase/.temp/
 packages/db/supabase/.branches/
+calibration-report.json

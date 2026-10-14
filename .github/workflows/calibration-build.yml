@@ -1,0 +1,41 @@
+name: Build calibration set
+
+# Development only: the large model writes statements to a known level and an
+# independent pass checks them (D-16). Run by hand; commits the set to the branch.
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: Statements to add
+        default: "15"
+      branch:
+        description: Branch to commit the set to
+        default: claude/modest-goodall-v742pd
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: pnpm --filter @interview-prep/eval build-set --count "${{ inputs.count }}" | tee build-summary.json
+      - name: Commit set
+        run: |
+          git config user.name "calibration-bot"
+          git config user.email "calibration-bot@users.noreply.github.com"
+          git add packages/eval/sets/experience-statements.jsonl
+          git commit -m "Calibration set: add ${{ inputs.count }} experience statements" || echo "Nothing to commit"
+          git push origin HEAD:${{ inputs.branch }}

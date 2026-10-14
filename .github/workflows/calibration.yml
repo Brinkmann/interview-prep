@@ -1,0 +1,31 @@
+name: Calibration
+
+# D-16 release gate: any change to a model, prompt or scoring rule must pass the
+# calibration run before it reaches staging.
+on:
+  pull_request:
+    paths:
+      - packages/ai/src/**
+      - packages/eval/**
+  workflow_dispatch:
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Calibration run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set, so the calibration run cannot execute."
+            exit 1
+          fi
+          pnpm --filter @interview-prep/eval calibrate
