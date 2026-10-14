@@ -1,10 +1,11 @@
 // Builds or extends the experience statement calibration set.
 // Usage: pnpm --filter @interview-prep/eval build-set -- --count 15
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { buildItem, plan } from "./experience-set";
 import { inBatches, ledger } from "./ledger";
 
 const SET = new URL("../sets/experience-statements.jsonl", import.meta.url);
+mkdirSync(new URL("../sets/", import.meta.url), { recursive: true });
 const count = Number(process.argv[process.argv.indexOf("--count") + 1] || 15);
 const existing = existsSync(SET) ? readFileSync(SET, "utf8").trim().split("\n").filter(Boolean).length : 0;
 
