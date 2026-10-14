@@ -1,7 +1,7 @@
 import { NOTICE_VERSION } from "@/lib/privacy";
 
-// LR-01: just-in-time notice at upload. Draft for the proof of concept (D-26), pending
-// founder approval; a privacy lawyer reviews it before any public launch.
+// LR-01: just-in-time notice at upload. Proof-of-concept text (D-26), approved by the
+// founder on 14 October 2026; a privacy lawyer reviews it before any public launch.
 export default function Privacy() {
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 680, margin: "3rem auto", padding: "0 1rem", lineHeight: 1.5 }}>
