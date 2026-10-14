@@ -6,6 +6,7 @@ import { Inngest } from "inngest";
 import { modelFor, runTask, TASKS } from "@interview-prep/ai";
 import { recordJobRun, serviceClient } from "@interview-prep/db";
 import { deleteOriginal, extractAndRedact } from "./redaction/pipeline";
+import { buildForRole, type ExpectationDeps } from "./expectations/build";
 import { extractFromCv, rankForRole, scoreOne, type ExperienceDeps } from "./experiences/pipeline";
 import { dueCandidates, purgeCandidate } from "./retention/purge";
 export { openExcerpt } from "./redaction/hold";
@@ -23,6 +24,7 @@ export const DELETE_REQUESTED = "candidate/delete.requested";
 export const CV_RESTORED = "cv/restored";
 export const ROLE_SAVED = "role/saved";
 export const EVIDENCE_CHANGED = "evidence/changed";
+export const EXPERIENCES_FOUND = "experiences/found";
 
 // Proves the round trip: the website sends an event, Inngest calls back into
 // the website to run this function. Carries no personal data.
@@ -135,6 +137,7 @@ export const experiencesExtract = inngest.createFunction(
     if (found.outcome !== "extracted") return { outcome: found.outcome };
     await step.run("rank", () => rankForRole(deps(), candidateId));
     await Promise.all(found.ids.map((id) => step.run(`score-${id}`, () => scoreOne(deps(), candidateId, id))));
+    await step.sendEvent("expectations", { name: EXPERIENCES_FOUND, data: { candidateId } });
     return { outcome: found.outcome, experiences: found.ids.length };
   },
 );
@@ -162,6 +165,41 @@ export const experiencesScore = inngest.createFunction(
   },
 );
 
+function expectationDeps(candidateId: string): ExpectationDeps {
+  const db = serviceClient();
+  return {
+    db,
+    // Reference data, shared by all candidates: full-text candidates, then the model picks.
+    matchOccupations: async (query) => {
+      const found = await db.rpc("match_occupations", { query, max_results: 5 });
+      if (found.error) throw new Error(`Could not search occupations: ${found.error.code}`);
+      const ids = (found.data as { id: string }[]).map((o) => o.id);
+      if (!ids.length) return [];
+      const rows = await db.from("occupations").select("id, title, description, tasks, skills").in("id", ids);
+      if (rows.error) throw new Error(`Could not read occupations: ${rows.error.code}`);
+      return ids.map((id) => rows.data.find((r) => r.id === id)!).filter(Boolean)
+        .map((r) => ({ ...r, description: r.description ?? "" }));
+    },
+    build: (input) => runTask("build_expectations", input, { candidateId, job: "expectations.build", recordRun: recordJobRun }),
+    modelId: modelFor("build_expectations"),
+    promptVersion: TASKS.build_expectations.promptVersion,
+  };
+}
+
+// expectations.build (Screen 4): after experiences are found, and when a new job ad is saved.
+export const expectationsBuild = inngest.createFunction(
+  {
+    id: "expectations-build",
+    triggers: [{ event: EXPERIENCES_FOUND }, { event: ROLE_SAVED }],
+    concurrency: { key: "event.data.candidateId", limit: 1 },
+    retries: 3,
+  },
+  async ({ event, step }) => {
+    const { candidateId } = event.data as { candidateId: string };
+    return step.run("build", () => buildForRole(expectationDeps(candidateId), candidateId));
+  },
+);
+
 // Derived from the service secret so no extra key has to be managed.
 function redactionHashKey(): string {
   const secret = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -171,6 +209,8 @@ function redactionHashKey(): string {
 
 export const functions = [
   connectionCheck, cvRedact, retentionPurge, holdsExpire, experiencesExtract, experiencesRank, experiencesScore,
+  expectationsBuild,
 ];
 export { evidenceNote, questionFor, STEPS, isStep, type StepId } from "./sprint/questions";
 export { parseAnswer, saveAnswer, skipStep, sprintItems, type ParsedFields, type SprintItem } from "./sprint/service";
+export { answerExpectation, expectationQuestion, type ExpectationAnswer } from "./expectations/answer";

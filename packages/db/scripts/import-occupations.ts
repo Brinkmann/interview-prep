@@ -61,16 +61,20 @@ async function getJson(url: string): Promise<any> {
 }
 
 export async function loadEsco(): Promise<Occupation[]> {
-  const uris: string[] = [];
-  for (let offset = 0; ; offset += 100) {
-    const page = await getJson(`${ESCO}/search?type=occupation&language=en&limit=100&offset=${offset}`);
-    const results = page?._embedded?.results ?? [];
-    uris.push(...results.map((r: { uri: string }) => r.uri));
-    if (results.length < 100) break;
+  const uris = new Set<string>();
+  // ESCO's offset is a page number, not a row number. Stop at a short or repeated page.
+  for (let pageNo = 0; pageNo < 200; pageNo++) {
+    const page = await getJson(`${ESCO}/search?type=occupation&language=en&limit=100&offset=${pageNo}`);
+    const results: { uri: string }[] = page?._embedded?.results ?? [];
+    const before = uris.size;
+    results.forEach((r) => uris.add(r.uri));
+    if (results.length < 100 || uris.size === before) break;
   }
+  console.log(`esco: ${uris.size} occupations listed`);
+  const list = [...uris];
   const out: Occupation[] = [];
-  for (let i = 0; i < uris.length; i += 8) {
-    const batch = await Promise.all(uris.slice(i, i + 8).map(async (uri) => {
+  for (let i = 0; i < list.length; i += 8) {
+    const batch = await Promise.all(list.slice(i, i + 8).map(async (uri) => {
       const o = await getJson(`${ESCO}/resource/occupation?uri=${encodeURIComponent(uri)}&language=en`);
       return {
         scheme: "esco" as const,
