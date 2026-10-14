@@ -1,10 +1,17 @@
 // Inngest background job functions. Every job that touches personal data must
 // receive and filter on candidate_id (06-phase0-1-build.md, Row-level security).
+// Step results are stored by Inngest, so steps return ids and counts only, never content.
+import { createHmac } from "node:crypto";
 import { Inngest } from "inngest";
+import { runTask } from "@interview-prep/ai";
+import { recordJobRun, serviceClient } from "@interview-prep/db";
+import { deleteOriginal, extractAndRedact } from "./redaction/pipeline";
 
 export const inngest = new Inngest({ id: "interview-prep" });
 
 export const CONNECTION_CHECK_EVENT = "system/connection.check";
+export const CV_UPLOADED = "cv/uploaded";
+export const CV_REDACTED = "cv/redacted";
 
 // Proves the round trip: the website sends an event, Inngest calls back into
 // the website to run this function. Carries no personal data.
@@ -15,4 +22,50 @@ export const connectionCheck = inngest.createFunction(
   },
 );
 
-export const functions = [connectionCheck];
+// cv.redact: one durable workflow per upload, one at a time per candidate.
+export const cvRedact = inngest.createFunction(
+  {
+    id: "cv-redact",
+    triggers: [{ event: CV_UPLOADED }],
+    concurrency: { key: "event.data.candidateId", limit: 1 },
+    retries: 3,
+    onFailure: async ({ event }) => {
+      const { candidateId, uploadId } = event.data.event.data as { candidateId: string; uploadId: string };
+      await serviceClient().from("uploads").update({ status: "failed", failure_reason: "processing_error" })
+        .eq("id", uploadId).eq("candidate_id", candidateId);
+    },
+  },
+  async ({ event, step }) => {
+    const { candidateId, uploadId } = event.data as { candidateId: string; uploadId: string };
+
+    const result = await step.run("extract-and-redact", () =>
+      extractAndRedact(
+        {
+          db: serviceClient(),
+          hashKey: redactionHashKey(),
+          flagSensitive: async (cvText) =>
+            (await runTask("redact_sensitive", { cvText }, { candidateId, job: "cv.redact", recordRun: recordJobRun })).spans,
+        },
+        candidateId,
+        uploadId,
+      ),
+    );
+
+    // The original is deleted whatever the outcome, including unreadable files.
+    await step.run("delete-original", () => deleteOriginal(serviceClient(), candidateId, uploadId));
+
+    if (result.outcome === "redacted") {
+      await step.sendEvent("hand-off", { name: CV_REDACTED, data: { candidateId, cvTextId: result.cvTextId } });
+    }
+    return result;
+  },
+);
+
+// Derived from the service secret so no extra key has to be managed.
+function redactionHashKey(): string {
+  const secret = process.env.SUPABASE_SECRET_KEY?.trim();
+  if (!secret) throw new Error("Supabase service credentials are not configured");
+  return createHmac("sha256", secret).update("redaction_log").digest("hex");
+}
+
+export const functions = [connectionCheck, cvRedact];
