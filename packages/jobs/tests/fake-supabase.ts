@@ -4,7 +4,7 @@ type Row = Record<string, unknown>;
 
 // Just enough of the Supabase client for the pipeline's calls, kept in memory.
 export function fakeSupabase(files: Map<string, Uint8Array>) {
-  const tables: Record<string, Row[]> = { uploads: [], cv_text: [], redaction_log: [] };
+  const tables: Record<string, Row[]> = { uploads: [], cv_text: [], redaction_log: [], redaction_holds: [] };
   let nextId = 1;
 
   function query(table: string) {

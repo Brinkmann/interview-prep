@@ -7,6 +7,9 @@ import { runTask } from "@interview-prep/ai";
 import { recordJobRun, serviceClient } from "@interview-prep/db";
 import { deleteOriginal, extractAndRedact } from "./redaction/pipeline";
 import { dueCandidates, purgeCandidate } from "./retention/purge";
+export { openExcerpt } from "./redaction/hold";
+export { adHash, looksTruncated } from "./job-ad";
+export { isRemovedMarker } from "./redaction/rules";
 
 export const inngest = new Inngest({ id: "interview-prep" });
 
@@ -83,6 +86,18 @@ export const retentionPurge = inngest.createFunction(
   },
 );
 
+// D-27: removed text is held for 24 hours only. Runs hourly; expired holds are deleted.
+export const holdsExpire = inngest.createFunction(
+  { id: "holds-expire", triggers: [{ cron: "0 * * * *" }], concurrency: { limit: 1 } },
+  async ({ step }) =>
+    step.run("delete-expired", async () => {
+      const { error, count } = await serviceClient().from("redaction_holds")
+        .delete({ count: "exact" }).lte("expires_at", new Date().toISOString());
+      if (error) throw new Error(`Could not delete expired holds: ${error.code}`);
+      return { deleted: count ?? 0 };
+    }),
+);
+
 // Derived from the service secret so no extra key has to be managed.
 function redactionHashKey(): string {
   const secret = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -90,4 +105,4 @@ function redactionHashKey(): string {
   return createHmac("sha256", secret).update("redaction_log").digest("hex");
 }
 
-export const functions = [connectionCheck, cvRedact, retentionPurge];
+export const functions = [connectionCheck, cvRedact, retentionPurge, holdsExpire];
