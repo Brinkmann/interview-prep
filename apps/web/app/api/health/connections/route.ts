@@ -9,14 +9,14 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const env = process.env;
 
-  const [supabase, anthropic, inngestEvent, sentry] = await Promise.all([
+  const [supabase, anthropic, jobs, sentry] = await Promise.all([
     checkSupabaseConnection({
       url: env.NEXT_PUBLIC_SUPABASE_URL,
       publishableKey: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
       secretKey: env.SUPABASE_SECRET_KEY,
     }),
     checkAnthropicConnection(env.ANTHROPIC_API_KEY),
-    checkInngestEvent(),
+    checkInngest(),
     checkSentry(),
   ]);
 
@@ -24,8 +24,9 @@ export async function GET() {
     supabasePublishableKey: supabase.publishableKey,
     supabaseSecretKey: supabase.secretKey,
     anthropicKey: anthropic,
-    inngestEventKey: inngestEvent,
-    inngestSigningKey: env.INNGEST_SIGNING_KEY ? "present" : "missing",
+    inngestEventKey: jobs.eventKey,
+    inngestSigningKey: jobs.signingKey,
+    inngestJobRoundTrip: jobs.roundTrip,
     sentryDsn: sentry,
     sentryAuthToken: env.SENTRY_AUTH_TOKEN ? "present" : "missing",
   };
@@ -33,19 +34,54 @@ export async function GET() {
   return Response.json({
     environment: env.VERCEL_ENV ?? "development",
     region: env.VERCEL_REGION ?? "local",
-    allPassed: Object.values(checks).every((v) => v === "ok" || v === "present"),
+    allPassed: Object.values(checks).every((v) => v === "ok" || v === "present" || v.startsWith("skipped")),
     checks,
   });
 }
 
-async function checkInngestEvent(): Promise<CheckResult> {
-  if (!process.env.INNGEST_EVENT_KEY) return "missing";
-  try {
-    await inngest.send({ name: CONNECTION_CHECK_EVENT, data: {} });
-    return "ok";
-  } catch (err) {
-    return `failed (${err instanceof Error ? err.message.slice(0, 80) : "send error"})`;
+// On the main deployment: re-registers the job endpoint with Inngest (which only succeeds
+// with a valid signing key), sends a test event, then waits for Inngest to run the job.
+async function checkInngest(): Promise<{
+  eventKey: CheckResult;
+  signingKey: CheckResult | "skipped (preview)";
+  roundTrip: CheckResult | "skipped (preview)";
+}> {
+  const signingKey = process.env.INNGEST_SIGNING_KEY;
+  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const isMain = process.env.VERCEL_ENV === "production";
+
+  let sync: CheckResult | "skipped (preview)" = "skipped (preview)";
+  if (isMain) {
+    if (!signingKey || !host) sync = "missing";
+    else {
+      const res = await fetch(`https://${host}/api/inngest`, { method: "PUT", cache: "no-store" });
+      sync = res.ok ? "ok" : `failed (HTTP ${res.status})`;
+    }
   }
+
+  if (!process.env.INNGEST_EVENT_KEY) return { eventKey: "missing", signingKey: sync, roundTrip: isMain ? "missing" : sync };
+  let eventId: string | undefined;
+  try {
+    ({ ids: [eventId] } = await inngest.send({ name: CONNECTION_CHECK_EVENT, data: {} }));
+  } catch (err) {
+    const reason = `failed (${err instanceof Error ? err.message.slice(0, 80) : "send error"})` as const;
+    return { eventKey: reason, signingKey: sync, roundTrip: isMain ? reason : sync };
+  }
+  if (sync !== "ok" || !eventId) return { eventKey: "ok", signingKey: sync, roundTrip: sync };
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const res = await fetch(`https://api.inngest.com/v1/events/${eventId}/runs`, {
+      headers: { Authorization: `Bearer ${signingKey}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return { eventKey: "ok", signingKey: sync, roundTrip: `failed (runs HTTP ${res.status})` };
+    const runs = ((await res.json()) as { data?: { status?: string }[] }).data ?? [];
+    const status = runs[0]?.status;
+    if (status === "Completed") return { eventKey: "ok", signingKey: sync, roundTrip: "ok" };
+    if (status === "Failed" || status === "Cancelled") return { eventKey: "ok", signingKey: sync, roundTrip: `failed (${status})` };
+  }
+  return { eventKey: "ok", signingKey: sync, roundTrip: "failed (job did not finish in 15s)" };
 }
 
 // Posts one test message straight to Sentry and reads its answer, so a wrong DSN shows as failed.
