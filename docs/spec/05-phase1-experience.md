@@ -134,7 +134,7 @@ When the last story is done, or the candidate chooses **Finish for now**: **Next
 > **Yes, I have** · **No, I haven't** · **Not sure**
 
 - **Yes, I have:** the app asks for a short example and adds it to Build your stories.
-- **No, I haven't:** recorded as a gap. Preparing an honest answer for a gap comes in a later phase.
+- **No, I haven't:** recorded as a gap. In a later phase it becomes a Gap Story: the gap stated plainly, then a bridge to your nearest real evidence and why you are still the best fit (D-37).
 - **Not sure:** kept as an open question.
 
 **Rules:** expectations come from the job ad first, then from what similar roles usually require, each shown with where it came from. A missing item is never treated as a gap until the candidate answers.

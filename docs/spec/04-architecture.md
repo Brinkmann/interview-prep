@@ -133,7 +133,7 @@ Six phases deliver all 27 Must stories. Phase 1 proves the core differentiator f
 | 0. Foundations | Platform skeleton that scales and protects data | US-04, 06 | Auth, RLS, job engine, model gateway, redaction, deletion job and calibration harness running; AI unit costs priced |
 | 1. Evidence core (prototype) | Prove evidence scoring and completeness probing | US-02, 16, 17, 18, 44, 45, 46 | Calibration set passes; test candidates rate the probing as useful |
 | 2. Role and organisation | Decode the role and build the scoped brief | US-01, 05, 08, 09, 12, 14 | Every item cited or labelled; Scope Card deterministic; shared cache reused |
-| 3. Prepare | Matrix, stories, narrative and questions | US-20, 21, 22, 23, 25 | Every weight-3 row covered or has a gap move |
+| 3. Prepare | Matrix, stories, narrative and questions | US-20, 21, 22, 23, 25 | Every weight-3 row covered; every unmatched must-have has a Gap Story (D-37) |
 | 4. Practise | Mocks, one-way video, probes, feedback, drills | US-27, 28, 30, 31, 33 | Video settings honoured; drill retirement rule enforced; Sprint cost under ceiling |
 | 5. Ready and launch | Readiness, cue card, payments and quotas | US-37, 38 | Free caps enforced server-side; Stripe live; DPIA and penetration test complete |
 

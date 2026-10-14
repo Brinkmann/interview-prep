@@ -10,7 +10,7 @@ The line sits between knowing and fixing. Free gives the candidate an honest, ac
 | --- | --- | --- |
 | Evidence scoring | Every CV achievement scored 1 to 7, weak ones flagged | Full evidence sprint to strengthen all of them (free covers the first 3) |
 | Completeness probing | Completeness view and the first 3 probe questions | Every probe until the input is well rounded |
-| Fit/gap heat map | The full heat map, including uncovered must-haves | Gap moves for every uncovered row, plus the full story portfolio (free names 2 stories) |
+| Fit/gap heat map | The full heat map, including uncovered must-haves | Gap Stories for every unmatched must-have (D-37), plus the full story portfolio (free names 2 stories) |
 | Question bank | The top 5 predicted questions and the total count ("42 predicted questions") | All questions with reasons, probes and linked stories |
 | Diagnostic mock | One 5-question mock with dimension scores and one priority fix | Fixes on every answer, re-attempts, follow-up probes, unlimited mocks in every format |
 | One-way video | One practice question with real timer settings | Full simulation of the invitation's question set |
