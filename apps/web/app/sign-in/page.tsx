@@ -24,7 +24,7 @@ export default function SignIn() {
       options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
     setBusy(false);
-    if (error) return setMessage("We could not send a code to that address. Check it and try again.");
+    if (error) return setMessage(`We could not send a sign-in email to that address (${error.message}). Check it and try again.`);
     setStage("code");
   }
 
