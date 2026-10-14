@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
@@ -14,6 +14,8 @@ export default function SignIn() {
   const [stage, setStage] = useState<"email" | "code">("email");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  useEffect(() => setDeleted(new URLSearchParams(window.location.search).has("deleted")), []);
 
   async function sendCode(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +50,9 @@ export default function SignIn() {
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 420, margin: "4rem auto", padding: "0 1rem" }}>
       <h1>Sign in</h1>
+      {deleted && (
+        <p role="status">Your data is being deleted. This takes a few minutes and cannot be undone.</p>
+      )}
       {stage === "email" ? (
         <form onSubmit={sendCode}>
           <label htmlFor="email">Email address</label>

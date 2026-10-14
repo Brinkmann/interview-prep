@@ -6,12 +6,14 @@ import { Inngest } from "inngest";
 import { runTask } from "@interview-prep/ai";
 import { recordJobRun, serviceClient } from "@interview-prep/db";
 import { deleteOriginal, extractAndRedact } from "./redaction/pipeline";
+import { dueCandidates, purgeCandidate } from "./retention/purge";
 
 export const inngest = new Inngest({ id: "interview-prep" });
 
 export const CONNECTION_CHECK_EVENT = "system/connection.check";
 export const CV_UPLOADED = "cv/uploaded";
 export const CV_REDACTED = "cv/redacted";
+export const DELETE_REQUESTED = "candidate/delete.requested";
 
 // Proves the round trip: the website sends an event, Inngest calls back into
 // the website to run this function. Carries no personal data.
@@ -61,6 +63,26 @@ export const cvRedact = inngest.createFunction(
   },
 );
 
+// retention.purge: daily for candidates past their deletion date, and immediately on
+// a delete request (US-06, AT-13). A single run at a time.
+export const retentionPurge = inngest.createFunction(
+  {
+    id: "retention-purge",
+    triggers: [{ cron: "TZ=Pacific/Auckland 0 3 * * *" }, { event: DELETE_REQUESTED }],
+    concurrency: { limit: 1 },
+    retries: 5,
+  },
+  async ({ event, step }) => {
+    const ids = event.name === DELETE_REQUESTED
+      ? [(event.data as { candidateId: string }).candidateId]
+      : await step.run("find-due", () => dueCandidates(serviceClient(), new Date().toISOString().slice(0, 10)));
+    for (const id of ids) {
+      await step.run(`purge-${id}`, () => purgeCandidate(serviceClient(), id));
+    }
+    return { purged: ids.length };
+  },
+);
+
 // Derived from the service secret so no extra key has to be managed.
 function redactionHashKey(): string {
   const secret = process.env.SUPABASE_SECRET_KEY?.trim();
@@ -68,4 +90,4 @@ function redactionHashKey(): string {
   return createHmac("sha256", secret).update("redaction_log").digest("hex");
 }
 
-export const functions = [connectionCheck, cvRedact];
+export const functions = [connectionCheck, cvRedact, retentionPurge];
