@@ -21,12 +21,13 @@ export const calibrationWriteStatement: TaskDefinition<
   typeof writeOutput
 > = {
   tier: "large",
-  promptVersion: "calibration_write_statement@1",
+  promptVersion: "calibration_write_statement@2",
   effort: "medium",
   maxTokens: 4000,
   system: [
     "You write realistic CV experience statements for a scoring calibration set. Each statement must sit squarely inside the requested level, not on its edge.",
     "Write one to three sentences as they would appear in a real CV. Use a fictional employer. Never include names of real people, dates of birth or other personal details.",
+    "Set it in New Zealand or Australia: local spelling, NZ$ or A$ amounts and local institutions where they fit.",
     "Level definitions:",
     ...Object.values(BAND_SPEC),
     RUBRIC,
