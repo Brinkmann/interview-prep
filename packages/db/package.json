@@ -8,9 +8,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests --exclude tests/rls.test.ts",
+    "test:rls": "vitest run tests/rls.test.ts",
+    "db:local": "./scripts/local-db.sh"
   },
   "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/pg": "^8.23.1",
+    "pg": "8.23.1",
     "typescript": "5.9.3",
     "vitest": "5.0.4"
   }

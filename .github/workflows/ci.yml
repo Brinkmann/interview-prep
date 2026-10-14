@@ -18,3 +18,43 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  # AT-12: migrations apply cleanly and every cross-candidate attempt fails,
+  # against the real Supabase stack.
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - run: pnpm install --frozen-lockfile
+      - run: supabase start --workdir packages/db
+      - run: pnpm --filter @interview-prep/db test:rls
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+  # Release gate: staging only receives migrations that passed the database job.
+  migrate-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, database]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+      - name: Apply migrations to staging
+        env:
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+        run: |
+          if [ -z "$STAGING_DB_URL" ]; then
+            echo "::error::STAGING_DB_URL secret is not set, so migrations were not applied to staging."
+            exit 1
+          fi
+          supabase db push --workdir packages/db --db-url "$STAGING_DB_URL" --yes
