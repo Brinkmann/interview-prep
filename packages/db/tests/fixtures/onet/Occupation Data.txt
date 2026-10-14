@@ -1,0 +1,3 @@
+O*NET-SOC Code	Title	Description
+11-9199.00	Project Management Specialists	Analyze and coordinate the schedule of projects.
+15-1252.00	Software Developers	Research, design, and develop software.

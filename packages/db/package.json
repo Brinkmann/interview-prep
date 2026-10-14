@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests --exclude tests/rls.test.ts",
     "test:rls": "vitest run tests/rls.test.ts",
-    "db:local": "./scripts/local-db.sh"
+    "db:local": "./scripts/local-db.sh",
+    "import-occupations": "node scripts/import-occupations.ts"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

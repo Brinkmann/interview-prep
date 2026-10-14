@@ -1,0 +1,4 @@
+O*NET-SOC Code	Task ID	Task	Task Type
+11-9199.00	1	Plan project schedules.	Core
+11-9199.00	2	Odd task.	Supplemental
+15-1252.00	3	Write code.	Core

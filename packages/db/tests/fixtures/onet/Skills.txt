@@ -1,0 +1,5 @@
+O*NET-SOC Code	Element ID	Element Name	Scale ID	Data Value
+11-9199.00	2.A	Coordination	IM	4.1
+11-9199.00	2.B	Speaking	IM	3.5
+11-9199.00	2.B	Speaking	LV	5.0
+15-1252.00	2.C	Programming	IM	4.6
