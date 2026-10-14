@@ -241,3 +241,5 @@ export { parseAnswer, saveAnswer, skipStep, sprintItems, type ParsedFields, type
 export { answerExpectation, expectationQuestion, type ExpectationAnswer } from "./expectations/answer";
 export { answerClaim, type ClaimType } from "./claims/check";
 export { beforeAfter, summaryText } from "./experiences/before-after";
+export { locate } from "./experiences/spans";
+export { overlaps, saysWe } from "./claims/check";
