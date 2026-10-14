@@ -17,7 +17,8 @@ export const CALLS: Record<string, Call> = {
   redact: { task: "CV redaction (step 4)", tier: "small", tokensIn: 3_000, tokensOut: 400 },
   extract: { task: "Extract experiences", tier: "small", tokensIn: 3_500, tokensOut: 3_000 },
   rank: { task: "Rank experiences for the role", tier: "medium", tokensIn: 3_500, tokensOut: 1_000 },
-  score: { task: "Score one experience", tier: "medium", tokensIn: 900, tokensOut: 500 },
+  // Measured 14 Oct 2026: 14 calls averaged 1,221 in and 82 out at low effort.
+  score: { task: "Score one experience", tier: "medium", tokensIn: 1_250, tokensOut: 100, measured: true },
   probe: { task: "Ask and parse one probe", tier: "small", tokensIn: 1_200, tokensOut: 400 },
   expectations: { task: "Build role expectations", tier: "medium", tokensIn: 3_500, tokensOut: 1_500 },
   claims: { task: "Check claims", tier: "medium", tokensIn: 3_500, tokensOut: 1_200 },
