@@ -4,7 +4,7 @@ Technical build detail for Phase 0 (foundations) and Phase 1 (evidence core prot
 
 ## Environments and repository
 
-- **Environments:** development, staging and production, each with its own Supabase project in ap-southeast-2 (Sydney), Vercel project and Inngest environment. Staging uses synthetic CVs only.
+- **Environments:** development, staging and production, each with its own Supabase project in ap-southeast-2 (Sydney), Vercel project and Inngest environment. Staging uses synthetic CVs only, except during the proof of concept (D-26), when invited testers may use their own.
 - **Repository:** one TypeScript monorepo: `apps/web` (Next.js), `packages/db` (schema, migrations, RLS policies, typed client), `packages/ai` (model gateway, prompt registry, output validators), `packages/jobs` (Inngest functions), `packages/eval` (calibration set and runner).
 - **Secrets:** stored in Vercel and Inngest environment settings; the Anthropic key is server-side only; no secret ever reaches the browser.
 - **Release gate:** migrations, RLS tests and the calibration run must pass in CI before deploy to staging or production.
