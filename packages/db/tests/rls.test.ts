@@ -217,6 +217,30 @@ describe("Sign-up", () => {
   });
 });
 
+describe("AT-13: deleting an account removes every personal row", () => {
+  it("cascades from the sign-in account to every personal table and clears cost records", async () => {
+    const C = await seedCandidate();
+    await db.query("insert into public.job_runs (candidate_id, job, status) values ($1, 'cv.redact', 'succeeded')", [C.candidate]);
+    await db.query("delete from auth.users where id = $1", [C.candidate]);
+
+    for (const table of [...PERSONAL, "candidates"]) {
+      const col = table === "candidates" ? "id" : "candidate_id";
+      const r = await db.query(`select count(*)::int as n from public.${table} where ${col} = $1`, [C.candidate]);
+      expect(r.rows[0].n, table).toBe(0);
+    }
+    // Cost records stay for pricing but no longer point at the person.
+    const runs = await db.query("select candidate_id from public.job_runs where job = 'cv.redact' and created_at > now() - interval '1 minute'");
+    expect(runs.rows.every((r) => r.candidate_id === null)).toBe(true);
+    await db.query("select set_config('storage.allow_delete_query', 'true', false)");
+    await db.query("delete from storage.objects where owner = $1", [C.candidate]);
+  });
+
+  it("gives every new candidate a deletion date 90 days out", async () => {
+    const r = await db.query("select retention_until - current_date as days from public.candidates where id = $1", [A.candidate]);
+    expect(r.rows[0].days).toBe(90);
+  });
+});
+
 describe("Signed-out visitors see nothing", () => {
   it.each([...PERSONAL, "candidates", "job_runs", "occupations"])("%s", async (table) => {
     await expect(as("anon", (c) => c.query(`select 1 from public.${table}`))).rejects.toThrow(/permission denied/);
