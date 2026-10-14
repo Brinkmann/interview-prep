@@ -5,7 +5,7 @@ import { CV_BUCKET } from "../redaction/pipeline";
 // them; they are listed here only to prove nothing is left afterwards.
 export const PERSONAL_TABLES = [
   "candidates", "consents", "target_roles", "uploads", "cv_text", "redaction_log", "experiences",
-  "evidence", "scores", "expectations", "probes", "feedback",
+  "evidence", "scores", "expectations", "probes", "feedback", "redaction_holds",
 ] as const;
 
 // AT-13: removes every personal row and file for one candidate, then proves it.

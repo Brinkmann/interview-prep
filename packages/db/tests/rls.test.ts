@@ -13,7 +13,7 @@ const db = new pg.Client({ connectionString: url });
 
 const PERSONAL = [
   "consents", "target_roles", "uploads", "cv_text", "redaction_log", "experiences",
-  "evidence", "scores", "expectations", "probes", "feedback",
+  "evidence", "scores", "expectations", "probes", "feedback", "redaction_holds",
 ] as const;
 type Personal = (typeof PERSONAL)[number];
 
@@ -42,6 +42,7 @@ function rowFor(table: Personal, cid: string, ids: Partial<Ids>): Record<string,
       candidate_id: cid, trigger: "vague", target_id: ids.experiences ?? randomUUID(), question: "How?", ...prov,
     };
     case "feedback": return { candidate_id: cid, usefulness: 4 };
+    case "redaction_holds": return { candidate_id: cid, redaction_log_id: ids.redaction_log, ciphertext: "sealed" };
   }
 }
 
@@ -155,6 +156,7 @@ describe("AT-12: candidate A cannot touch candidate B's data", () => {
     ["scores", "experience_id", "experiences"],
     ["expectations", "target_role_id", "target_roles"],
     ["expectations", "matched_experience_id", "experiences"],
+    ["redaction_holds", "redaction_log_id", "redaction_log"],
   ] as const)("%s: A cannot link A's own row to B's %s", async (table, column, parent) => {
     const row = { ...rowFor(table, A.candidate, A), [column]: B[parent] };
     await expect(as(A.candidate, (c) => insert(c, table, row))).rejects.toThrow();

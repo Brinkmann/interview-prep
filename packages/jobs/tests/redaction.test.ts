@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyRules } from "../src/redaction/rules";
+import { openExcerpt, sealExcerpt } from "../src/redaction/hold";
+import { applyRules, markerSequence } from "../src/redaction/rules";
 import { parseCv, UnreadableCvError } from "../src/redaction/parse";
 import { deleteOriginal, excerptHash, extractAndRedact } from "../src/redaction/pipeline";
 import { cvDocx, cvPdf } from "./fixtures";
@@ -7,6 +8,7 @@ import { fakeSupabase } from "./fake-supabase";
 
 const CANDIDATE = "cand-1";
 const KEY = "test-key";
+const SEAL_KEY = Buffer.alloc(32, 7);
 
 // Stands in for the model step: flags exactly what a correct run would.
 const flagSensitive = async (text: string) => [
@@ -19,7 +21,7 @@ async function runPipeline(bytes: Uint8Array, ext: string) {
   const files = new Map([[path, bytes]]);
   const { client, tables } = fakeSupabase(files);
   tables.uploads!.push({ id: "up-1", candidate_id: CANDIDATE, storage_path: path, status: "received" });
-  const result = await extractAndRedact({ db: client, flagSensitive, hashKey: KEY }, CANDIDATE, "up-1");
+  const result = await extractAndRedact({ db: client, flagSensitive, hashKey: KEY, seal: (p) => sealExcerpt(p, SEAL_KEY) }, CANDIDATE, "up-1");
   await deleteOriginal(client, CANDIDATE, "up-1");
   return { result, tables, files, path };
 }
@@ -46,6 +48,19 @@ describe.each([["pdf", cvPdf], ["docx", cvDocx]] as const)("AT-01 with a %s CV",
     expect(files.has(path)).toBe(false);
     expect(tables.uploads![0]!.deleted_at).toBeTruthy();
     expect(tables.uploads![0]!.status).toBe("redacted");
+  });
+
+  it("holds each removed line encrypted for restore, but never the photo (D-27)", async () => {
+    const { tables } = await runPipeline(await make(), ext);
+    const textRemovals = tables.redaction_log!.filter((l) => l.category !== "photo");
+    expect(tables.redaction_holds).toHaveLength(textRemovals.length);
+    const holds = JSON.stringify(tables.redaction_holds);
+    expect(holds).not.toContain("diabetes");
+    const health = tables.redaction_log!.find((l) => l.category === "health")!;
+    const hold = tables.redaction_holds!.find((h) => h.redaction_log_id === health.id)!;
+    expect(openExcerpt(String(hold.ciphertext), SEAL_KEY)).toBe("I have type 1 diabetes, which is well managed.");
+    // The marker sits where the line was, so a restore puts it back in place.
+    expect(String(tables.cv_text![0]!.redacted_text)).toContain(String(health.marker));
   });
 });
 
@@ -77,13 +92,13 @@ describe("AT-02", () => {
 
 describe("rules redaction", () => {
   it("removes labelled personal details", () => {
-    const { text, removals } = applyRules("DOB: 01/02/1990\nAge: 34\nSex: M\nMarital status: Married\nCitizenship: British");
+    const { text, removals } = applyRules("DOB: 01/02/1990\nAge: 34\nSex: M\nMarital status: Married\nCitizenship: British", markerSequence());
     expect(text).not.toMatch(/1990|34|Married|British|\bM\b/);
     expect(removals.map((r) => r.category).sort()).toEqual(["age", "date_of_birth", "gender", "marital_status", "nationality"]);
   });
 
   it("leaves job titles and ordinary sentences alone", () => {
     const input = "Gender Equity Programme Lead\nManaged a team aged between 20 and 60.\nBorn and raised in Dunedin.";
-    expect(applyRules(input).text).toBe(input);
+    expect(applyRules(input, markerSequence()).text).toBe(input);
   });
 });

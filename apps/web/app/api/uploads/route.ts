@@ -1,4 +1,5 @@
 import { CV_UPLOADED, inngest } from "@interview-prep/jobs";
+import { hasConsented } from "@/lib/consent";
 import { supabaseServer } from "@/lib/supabase/server";
 
 // Screen 1: the browser has put the CV in the candidate's private folder; this records
@@ -7,6 +8,7 @@ export async function POST(request: Request) {
   const supabase = await supabaseServer();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return Response.json({ error: "signed_out" }, { status: 401 });
+  if (!(await hasConsented(supabase))) return Response.json({ error: "consent_required" }, { status: 403 });
 
   const { path } = (await request.json().catch(() => ({}))) as { path?: unknown };
   if (typeof path !== "string" || !path.startsWith(`${auth.user.id}/`) || path.includes("..")) {

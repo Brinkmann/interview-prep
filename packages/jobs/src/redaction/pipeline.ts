@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { applyRules, removeExcerpts, type Removal } from "./rules";
+import { sealExcerpt } from "./hold";
+import { applyRules, markerSequence, removeExcerpts, type Removal } from "./rules";
 import { formatFromPath, parseCv, UnreadableCvError } from "./parse";
 
 export const CV_BUCKET = "cv-uploads";
@@ -10,6 +11,8 @@ export interface RedactDeps {
   // Redaction step 4, through the model gateway.
   flagSensitive: (cvText: string) => Promise<{ category: string; text: string }[]>;
   hashKey: string;
+  // Encrypts an excerpt for the 24-hour restore hold (D-27).
+  seal?: (plain: string) => string;
 }
 
 export type RedactResult =
@@ -51,10 +54,11 @@ export async function extractAndRedact(
   }
 
   await setStatus(db, candidateId, uploadId, "redacting");
-  const rules = applyRules(parsed.text);
-  const model = removeExcerpts(rules.text, await deps.flagSensitive(rules.text));
+  const nextMarker = markerSequence();
+  const rules = applyRules(parsed.text, nextMarker);
+  const model = removeExcerpts(rules.text, await deps.flagSensitive(rules.text), nextMarker);
   const removals: Removal[] = [
-    ...Array.from({ length: parsed.imageCount }, () => ({ category: "photo", excerpt: "embedded image" })),
+    ...Array.from({ length: parsed.imageCount }, () => ({ category: "photo", excerpt: "embedded image", marker: null })),
     ...rules.removals,
     ...model.removals,
   ];
@@ -72,10 +76,22 @@ export async function extractAndRedact(
       cv_text_id: saved.data.id,
       category: r.category,
       excerpt_hash: excerptHash(deps.hashKey, r.excerpt),
+      marker: r.marker,
       model_id: model.removals.includes(r) ? "claude-haiku-5-5" : null,
       prompt_version: model.removals.includes(r) ? "redact_sensitive@1" : null,
-    })));
+    }))).select("id, marker");
     if (log.error) throw new Error(`Could not save redaction log: ${log.error.code}`);
+
+    // Text removals are held encrypted for 24 hours so a mistake can be restored.
+    const seal = deps.seal ?? sealExcerpt;
+    const byMarker = new Map(removals.filter((r) => r.marker).map((r) => [r.marker!, r.excerpt]));
+    const holds = (log.data as { id: string; marker: string | null }[])
+      .filter((row) => row.marker && byMarker.has(row.marker))
+      .map((row) => ({ candidate_id: candidateId, redaction_log_id: row.id, ciphertext: seal(byMarker.get(row.marker!)!) }));
+    if (holds.length) {
+      const held = await db.from("redaction_holds").insert(holds);
+      if (held.error) throw new Error(`Could not save restore holds: ${held.error.code}`);
+    }
   }
 
   await setStatus(db, candidateId, uploadId, "redacted");
