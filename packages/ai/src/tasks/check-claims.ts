@@ -16,11 +16,12 @@ const datesOutput = z.object({
 
 export const claimsJobDates: TaskDefinition<{ cvText: string }, typeof datesOutput> = {
   tier: "small",
-  promptVersion: "claims_job_dates@1",
+  promptVersion: "claims_job_dates@2",
   effort: "low",
   maxTokens: 3000,
   system: [
     "You list every job, study, volunteer or part-time role in a CV with its start and end dates, exactly as the CV states them.",
+    'For a current role ("to present", "to date", "current") give the end as "present", never null.',
     "Do not guess a date the CV does not give.",
   ].join(" "),
   buildUserMessage: ({ cvText }) => `<cv>\n${cvText}\n</cv>`,

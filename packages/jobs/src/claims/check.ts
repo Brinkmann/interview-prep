@@ -31,7 +31,13 @@ export function toMonth(value: string | null, edge: "start" | "end", now: Date):
 }
 
 export function overlaps(jobs: Job[], now = new Date()): [Job, Job][] {
-  const spans = jobs.map((j) => ({ j, s: toMonth(j.start, "start", now), e: toMonth(j.end, "end", now) }))
+  // A missing end date counts as "present" only for the most recently started role.
+  const starts = jobs.map((j) => toMonth(j.start, "start", now) ?? -1);
+  const latest = Math.max(...starts);
+  const spans = jobs.map((j, i) => ({
+    j, s: toMonth(j.start, "start", now),
+    e: toMonth(j.end ?? (starts[i] === latest && latest >= 0 ? "present" : null), "end", now),
+  }))
     .filter((x): x is { j: Job; s: number; e: number } => x.s !== null && x.e !== null && x.e >= x.s);
   const out: [Job, Job][] = [];
   for (let a = 0; a < spans.length; a++) {

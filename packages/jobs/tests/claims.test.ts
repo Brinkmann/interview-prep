@@ -12,6 +12,9 @@ describe("date overlaps (AT-09)", () => {
     expect(overlaps([{ ...a, end: "2021-03" }, b], now)).toEqual([]);
     expect(overlaps([{ label: "A", start: "2018", end: "2021" }, { label: "B", start: "2021", end: "2023" }], now)).toEqual([]);
     expect(overlaps([{ label: "A", start: "2018", end: "2022" }, { label: "B", start: "2020", end: "2023" }], now)).toHaveLength(1);
+    // A current role with no end date given; an older role with none is not assumed current.
+    expect(overlaps([{ label: "B", start: "2021-03", end: null }, { label: "A", start: "2017-06", end: "2021-08" }], now)).toHaveLength(1);
+    expect(overlaps([{ label: "A", start: "2017-06", end: null }, { label: "B", start: "2021-03", end: "2022-01" }], now)).toHaveLength(0);
     // Dates as a model may write them.
     expect(overlaps([{ label: "A", start: "June 2017", end: "August 2021" }, { label: "B", start: "Mar 2021", end: "Present" }], now)).toHaveLength(1);
     expect(overlaps([{ label: "A", start: "06/2017", end: "2021-8" }, { label: "B", start: "2021-03", end: "current" }], now)).toHaveLength(1);
