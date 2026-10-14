@@ -5,8 +5,12 @@ name: Import occupations
 on:
   workflow_dispatch:
     inputs:
+      onet:
+        description: Import O*NET
+        type: boolean
+        default: true
       esco:
-        description: Also import ESCO (slower, about 3,000 API calls)
+        description: Import ESCO (slower, about 3,000 API calls)
         type: boolean
         default: true
 
@@ -22,6 +26,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Download O*NET
+        if: ${{ inputs.onet }}
         run: |
           # The release number changes: read it from the newest download on the database page,
           # then fetch the tab-separated text edition of that release.
@@ -33,6 +38,6 @@ jobs:
       - name: Import
         env:
           DATABASE_URL: ${{ secrets.STAGING_DB_URL }}
-          ONET_DIR: ${{ github.workspace }}/onet
+          ONET_DIR: ${{ inputs.onet && format('{0}/onet', github.workspace) || '' }}
           IMPORT_ESCO: ${{ inputs.esco }}
         run: pnpm --filter @interview-prep/db import-occupations

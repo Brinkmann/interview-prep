@@ -73,9 +73,15 @@ export async function loadEsco(): Promise<Occupation[]> {
   console.log(`esco: ${uris.size} occupations listed`);
   const list = [...uris];
   const out: Occupation[] = [];
+  let failed = 0;
   for (let i = 0; i < list.length; i += 8) {
-    const batch = await Promise.all(list.slice(i, i + 8).map(async (uri) => {
-      const o = await getJson(`${ESCO}/resource/occupation?uri=${encodeURIComponent(uri)}&language=en`);
+    const batch = await Promise.all(list.slice(i, i + 8).map(async (uri): Promise<Occupation | null> => {
+      // A few ESCO records fail on ESCO's side; skip them rather than lose the whole import.
+      const o = await getJson(`${ESCO}/resource/occupation?uri=${encodeURIComponent(uri)}&language=en`).catch(() => null);
+      if (!o) {
+        failed++;
+        return null;
+      }
       return {
         scheme: "esco" as const,
         code: uri.split("/").pop()!,
@@ -86,8 +92,10 @@ export async function loadEsco(): Promise<Occupation[]> {
         skills: (o._links?.hasEssentialSkill ?? []).map((s: { title: string }) => s.title).slice(0, 20),
       };
     }));
-    out.push(...batch.filter((o) => o.title));
+    for (const o of batch) if (o?.title) out.push(o);
   }
+  console.log(`esco: ${failed} records could not be read`);
+  if (failed > list.length * 0.05) throw new Error(`Too many ESCO records failed (${failed} of ${list.length})`);
   return out;
 }
 
