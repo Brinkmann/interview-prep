@@ -56,7 +56,7 @@ One durable workflow, triggered when a CV upload completes. Each step retries in
 
 All model calls go through one function: `runTask(taskName, input)`.
 
-- A task registry maps each task to tier, model id (`claude-haiku-5-5`, `claude-sonnet-5-5` or `claude-opus-5-5`), prompt version, output schema, maximum tokens and temperature (0 for scoring and classification).
+- A task registry maps each task to tier, model id (`claude-haiku-5-5`, `claude-sonnet-5-5` or `claude-opus-5-5`), prompt version, output schema, maximum tokens and effort (lowest for scoring and classification; temperature cannot be set on current models, D-24).
 - Outputs are structured JSON validated against the schema; invalid output is retried once, then the job fails visibly.
 - Every call writes a `job_runs` row with tokens and estimated cost; prompt and response content are never logged.
 - Changing a model or prompt version requires a passing calibration run.

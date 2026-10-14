@@ -1,4 +1,5 @@
-// Schema, migrations, row-level security policies and typed client. Built out during Phase 0.
+// Schema, migrations, row-level security policies and typed client.
+export { serviceClient, recordJobRun, type JobRunRow } from "./service";
 
 export type CheckResult = "ok" | "missing" | `failed (${string})`;
 
