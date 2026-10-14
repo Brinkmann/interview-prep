@@ -1,7 +1,7 @@
 // Imports O*NET (text release, already unzipped into ONET_DIR) and English ESCO
 // (from the ESCO API) into public.occupations. Run by the "Import occupations" workflow.
 // Reference data only: no personal information.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import pg from "pg";
 
@@ -16,7 +16,15 @@ function readTsv(path: string): Record<string, string>[] {
 export function loadOnet(dir: string): Occupation[] {
   const occ = readTsv(join(dir, "Occupation Data.txt"));
   const tasks = readTsv(join(dir, "Task Statements.txt"));
-  const skills = readTsv(join(dir, "Skills.txt")).filter((r) => r["Scale ID"] === "IM");
+  // Release 31 split "Skills.txt" into essential and transferable skills; read whichever exist.
+  const skillFiles = ["Skills.txt", "Essential Skills.txt", "Transferable Skills.txt"].map((f) => join(dir, f)).filter(existsSync);
+  if (!skillFiles.length) throw new Error("No O*NET skills file found");
+  const skills = skillFiles.flatMap((f) => {
+    const rows = readTsv(f);
+    console.log(`${f.split("/").pop()}: columns ${Object.keys(rows[0] ?? {}).join(" | ")}`);
+    // Importance ratings only, where the file carries several scales.
+    return rows.filter((r) => !("Scale ID" in r) || r["Scale ID"] === "IM");
+  });
   const byCode = new Map<string, Occupation>();
   for (const r of occ) {
     byCode.set(r["O*NET-SOC Code"]!, {
@@ -30,7 +38,8 @@ export function loadOnet(dir: string): Occupation[] {
   const ranked = new Map<string, { name: string; value: number }[]>();
   for (const s of skills) {
     const list = ranked.get(s["O*NET-SOC Code"]!) ?? [];
-    list.push({ name: s["Element Name"]!, value: Number(s["Data Value"]) });
+    const name = s["Element Name"] ?? s["Skill"] ?? s["Title"];
+    if (name && !list.some((l) => l.name === name)) list.push({ name, value: Number(s["Data Value"] ?? 0) || 0 });
     ranked.set(s["O*NET-SOC Code"]!, list);
   }
   for (const [code, list] of ranked) {

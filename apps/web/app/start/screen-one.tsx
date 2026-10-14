@@ -159,6 +159,7 @@ export function ScreenOne({ candidateId, consented: initiallyConsented }: { cand
               ))}
             </ul>
           )}
+          {adSaved && <p><a href="/found">See what we found in your CV</a></p>}
         </div>
       )}
       {message && <p role="status">{message}</p>}
