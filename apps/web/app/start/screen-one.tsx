@@ -25,7 +25,7 @@ function removedSentence(categories: string[]): string {
   const items = [...new Set(categories.map((c) => PHRASES[c] ?? "a personal detail"))];
   const list = items.length > 1 ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}` : items[0];
   const n = categories.length;
-  // D-27 changes the approved "We haven't stored them": removed lines are held for 24 hours.
+  // D-27: removed lines are held for 24 hours, so "We haven't stored them" became this (founder approved).
   return `We removed ${n} ${n === 1 ? "thing" : "things"} you don't need for interview preparation: ${list}. We don't use ${n === 1 ? "it" : "them"}, and we delete ${n === 1 ? "it" : "them"} within 24 hours.`;
 }
 

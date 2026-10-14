@@ -30,7 +30,7 @@ export default function Privacy() {
       <p>We delete everything 90 days after you sign up, unless you delete it sooner. You can delete all your information at any time with one button on your page, and it is gone within minutes.</p>
 
       <h2>Your rights</h2>
-      <p>You can see, correct and delete your information at any time. To ask for a copy of everything we hold about you, or with any question, contact [contact email].</p>
+      <p>You can see, correct and delete your information at any time. To ask for a copy of everything we hold about you, or with any question, contact <a href="mailto:obrinkmann@gmail.com">obrinkmann@gmail.com</a>.</p>
     </main>
   );
 }
