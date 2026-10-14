@@ -12,9 +12,9 @@ export async function GET(request: Request) {
 
   const [supabase, anthropic, jobs, sentry, gateway] = await Promise.all([
     checkSupabaseConnection({
-      url: env.NEXT_PUBLIC_SUPABASE_URL,
-      publishableKey: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-      secretKey: env.SUPABASE_SECRET_KEY,
+      url: env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
+      publishableKey: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim(),
+      secretKey: env.SUPABASE_SECRET_KEY?.trim(),
     }),
     checkAnthropicConnection(env.ANTHROPIC_API_KEY),
     checkInngest(),
