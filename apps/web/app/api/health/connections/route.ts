@@ -1,15 +1,16 @@
-import { checkAnthropicConnection } from "@interview-prep/ai";
-import { checkSupabaseConnection, type CheckResult } from "@interview-prep/db";
+import { checkAnthropicConnection, runTask } from "@interview-prep/ai";
+import { checkSupabaseConnection, recordJobRun, serviceClient, type CheckResult } from "@interview-prep/db";
 import { CONNECTION_CHECK_EVENT, inngest } from "@interview-prep/jobs";
 
 export const dynamic = "force-dynamic";
 
 // Reports whether each service accepts the keys saved in Vercel.
 // Returns pass or fail only; never returns a key or any personal data.
-export async function GET() {
+export async function GET(request: Request) {
   const env = process.env;
+  const wantGateway = new URL(request.url).searchParams.get("gateway") === "1";
 
-  const [supabase, anthropic, jobs, sentry] = await Promise.all([
+  const [supabase, anthropic, jobs, sentry, gateway] = await Promise.all([
     checkSupabaseConnection({
       url: env.NEXT_PUBLIC_SUPABASE_URL,
       publishableKey: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
@@ -18,6 +19,7 @@ export async function GET() {
     checkAnthropicConnection(env.ANTHROPIC_API_KEY),
     checkInngest(),
     checkSentry(),
+    wantGateway ? checkGateway() : Promise.resolve("skipped (add ?gateway=1)" as const),
   ]);
 
   const checks = {
@@ -29,6 +31,7 @@ export async function GET() {
     inngestJobRoundTrip: jobs.roundTrip,
     sentryDsn: sentry,
     sentryAuthToken: env.SENTRY_AUTH_TOKEN ? "present" : "missing",
+    modelGateway: gateway,
   };
 
   return Response.json({
@@ -82,6 +85,32 @@ async function checkInngest(): Promise<{
     if (status === "Failed" || status === "Cancelled") return { eventKey: "ok", signingKey: sync, roundTrip: `failed (${status})` };
   }
   return { eventKey: "ok", signingKey: sync, roundTrip: "failed (job did not finish in 15s)" };
+}
+
+const GATEWAY_JOB = "system.connection_check";
+// Synthetic text only. Proves a real model call through runTask, schema validation
+// and the job_runs cost record, and that the redaction prompt keeps job titles.
+const SYNTHETIC_CV = "Sam Example. Health and Safety Coordinator, 2019 to 2024. I live with asthma.";
+
+async function checkGateway(): Promise<CheckResult | "skipped (ran in the last 10 minutes)"> {
+  // Each run makes a paid model call, so a public request can trigger at most one per 10 minutes.
+  const since = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { count, error } = await serviceClient()
+    .from("job_runs").select("id", { count: "exact", head: true })
+    .eq("job", GATEWAY_JOB).gte("created_at", since);
+  if (error) return `failed (job_runs HTTP ${error.code})`;
+  if (count) return "skipped (ran in the last 10 minutes)";
+  try {
+    const out = await runTask("redact_sensitive", { cvText: SYNTHETIC_CV }, {
+      candidateId: null, job: GATEWAY_JOB, recordRun: recordJobRun,
+    });
+    const flagged = out.spans.map((s) => s.text).join(" ");
+    if (!/asthma/i.test(flagged)) return "failed (health statement not flagged)";
+    if (/Coordinator/i.test(flagged)) return "failed (job title flagged)";
+    return "ok";
+  } catch (err) {
+    return `failed (${err instanceof Error ? err.message.slice(0, 80) : "error"})`;
+  }
 }
 
 // Posts one test message straight to Sentry and reads its answer, so a wrong DSN shows as failed.
