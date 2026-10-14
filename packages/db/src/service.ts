@@ -5,8 +5,8 @@ let client: SupabaseClient | undefined;
 // Server-side only. Bypasses row-level security, so every query a job makes must
 // still filter on candidate_id (06-phase0-1-build.md, Row-level security).
 export function serviceClient(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SECRET_KEY?.trim();
   if (!url || !key) throw new Error("Supabase service credentials are not configured");
   return (client ??= createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }));
 }

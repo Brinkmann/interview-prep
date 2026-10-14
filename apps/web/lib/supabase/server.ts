@@ -1,13 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
 
 // Signed-in client for server components and route handlers. Acts as the candidate,
 // so row-level security applies to every query. Create one per request.
 export async function supabaseServer() {
   const store = await cookies();
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabasePublishableKey,
     {
       cookies: {
         getAll: () => store.getAll(),
