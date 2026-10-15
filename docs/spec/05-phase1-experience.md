@@ -24,7 +24,7 @@ A step tracker sits at the top of every screen, so the candidate always knows wh
 | 3. Build your stories | "How do I turn these into stories I can tell?" | One story at a time, a few questions written for that story, the story taking shape as they answer |
 | 4. Check for gaps | "Am I missing anything?" | What the role usually asks for, a verdict, and one question for each gap |
 | 5. Prepare for challenges | "What will an interviewer push back on?" | Claims likely to be challenged, each with a question written for that claim |
-| 6. Where you stand | "Am I ready?" | Stories ready to tell, what is left, and what comes next |
+| 6. Where you stand | "Where do I stand now?" | Stories ready to tell, what is left, and what comes next |
 
 The whole journey should take about 30 minutes. The candidate can stop at any point and pick up where they left off.
 
@@ -165,7 +165,7 @@ Each question is written for that claim and is only raised where it fits: a clai
 
 > *You now have 6 stories ready to tell and 2 almost there, up from 2 ready when you started. Your strongest for this role: carrier renegotiation, picking errors and the dispatch team turnaround. Still open: inventory planning (you said you haven't done it) and one claim to check.*
 
-Below it, the candidate's stories in full, ready to read before the interview, with a **Copy all my stories** button that says what it does: it copies every story as plain text, to paste into the candidate's notes or a document before the interview.
+Below it, the candidate's stories so far, to review. There is no copy, print or export here: taking stories into practice, cue cards and the interview brief belongs to the readiness dashboard in a later phase (D-39). The step asks "Where do I stand now?", never "Am I ready?", because only the readiness gate (FR-25) may say a candidate is ready.
 
 Then an honest next step:
 
@@ -208,6 +208,7 @@ Unchanged. Phase 1 is tested by invited team members (D-26, D-28). Phase 2 start
 | D-34 | Step 4 opens with a verdict, and its answers are "Yes, I have", "No, I haven't" and "Not sure". |
 | D-35 | Claim-check questions are written for each claim and raised only where they fit; the claim and the question are shown separately, and the candidate can mark a claim as fine. |
 | D-36 | The summary shows stories ready to tell, compares like with like, lets the candidate copy their stories, and states plainly where the test version ends. |
+| D-39 | The Phase 1 summary has no copy, print or export, and asks "Where do I stand now?" rather than "Am I ready?". Using stories outside the app belongs to the readiness dashboard (Stage 8), and only the readiness gate (FR-25) may say a candidate is ready. Amends D-36 and D-38. |
 | D-38 | Second walkthrough refinements: the Step 2 headline names only the labels that apply and each card shows its label's meaning; Step 3 buttons are Continue, Skip this question and Finish this story, each explained; Step 4 answers are "Yes, I have", "Partly" and "No, I haven't" (partly adds an example to the stories); Step 5 offers "Save my answer" or "This claim is fine as it is"; Step 6's copy button says what it copies and where to paste it. |
 
 ## Approval checklist

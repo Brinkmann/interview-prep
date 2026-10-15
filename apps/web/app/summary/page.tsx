@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { BAND_LABEL, beforeAfter, latestScores, summaryText } from "@interview-prep/jobs";
 import { supabaseServer } from "@/lib/supabase/server";
 import { Page } from "../_ui/shell";
-import { CopyStories } from "./copy-stories";
 import { Feedback } from "./feedback";
 
 // Step 6, Where you stand (05-phase1-experience.md, revision 2; D-36, AT-11).
@@ -41,11 +40,10 @@ export default async function Summary() {
   });
 
   return (
-    <Page step={6} title="Am I ready?">
+    <Page step={6} title="Where do I stand now?">
       <p className="lead">{summaryText(result, { gaps, questions })}</p>
 
-      <h2>Your stories</h2>
-      <CopyStories text={told.map((t) => [t.cv, ...t.parts.map(([k, v]) => `${k}: ${v}`)].join("\n")).join("\n\n")} />
+      <h2>Your stories so far</h2>
       {told.map((t) => (
         <article key={t.id} className="card">
           {t.band && <span className={`label ${t.band}`}>{BAND_LABEL[t.band]}</span>}
