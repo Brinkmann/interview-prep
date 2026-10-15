@@ -69,9 +69,11 @@ Then one clear button: **Next: find your strongest material**.
 
 **The candidate sees** the 8 to 10 experiences that matter most for this role, best first, under a headline:
 
-> *Here are the 9 experiences from your CV that best show what a Supply Chain Manager role needs. 2 are ready to tell, 4 are almost there and 3 are worth building. In the next step we'll strengthen them, one at a time.*
+> *Here are the 9 experiences from your CV that best show what a Supply Chain Manager role needs: 2 ready to tell, 4 almost there and 3 worth building. In the next step we'll strengthen them, one at a time.*
 
-Each card shows the experience in the candidate's words, a rating label, what is already strong, and the single most useful thing to add:
+Only the labels that apply are named: a candidate with nothing worth building is never told "0 are worth building" (D-38). With a single experience: *"Here is the experience from your CV that best shows what a Project Manager role needs. It is almost there. In the next step we'll strengthen it."*
+
+The cards sit under the heading *"Your experiences for this role"*, so they read as the experiences the headline counts. Each card shows the experience in the candidate's words, a rating label with its one-line meaning beside it (D-38), what is already strong, and the single most useful thing to add:
 
 | Label | Meaning | Example card |
 | --- | --- | --- |
@@ -102,7 +104,7 @@ The screen has two halves:
 
 > *You led the carrier renegotiation. Roughly how much did freight costs fall, and over what period? An estimate is fine; we'll label it as one.*
 
-**Answering:** the candidate types an answer, or chooses **Skip this one**. The app then shows the updated story with one line: *"Did we get this right?"* with **Yes, looks right** (saves and moves on) and **Edit** (to change any part in their own words). Nothing is saved that the candidate has not seen.
+**Answering:** the candidate types an answer and chooses **Continue**, or chooses **Skip this question** (the app asks something else about this story) or **Finish this story** (keeps what they have and moves to the next story). A line under the buttons says what each one does (D-38). The app then shows the updated story with one line: *"Did we get this right?"* with **Yes, looks right** (saves and moves on) and **Edit** (to change any part in their own words). Nothing is saved that the candidate has not seen.
 
 **Estimates:** when an answer has a figure, the app asks once: *"Is that exact, or your estimate?"* An estimate asks *"How did you arrive at it?"* and is labelled in the story: "(estimate, based on monthly KPI reports)".
 
@@ -131,11 +133,10 @@ When the last story is done, or the candidate chooses **Finish for now**: **Next
 
 > *Supply Chain Manager roles usually involve inventory planning or forecasting. Have you done this?*
 >
-> **Yes, I have** · **No, I haven't** · **Not sure**
+> **Yes, I have** · **Partly** · **No, I haven't**
 
-- **Yes, I have:** the app asks for a short example and adds it to Build your stories.
+- **Yes, I have** or **Partly:** the app asks for a short example and adds it to Build your stories (D-38: whether someone has done something is a yes, a partly or a no, not a "not sure").
 - **No, I haven't:** recorded as a gap. In a later phase it becomes a Gap Story: the gap stated plainly, then a bridge to your nearest real evidence and why you are still the best fit (D-37).
-- **Not sure:** kept as an open question.
 
 **Rules:** expectations come from the job ad first, then from what similar roles usually require, each shown with where it came from. A missing item is never treated as a gap until the candidate answers.
 
@@ -154,7 +155,7 @@ When the last story is done, or the candidate chooses **Finish for now**: **Next
 | Unusually large | A figure well above what is typical | *That's a large saving. How was it measured, and what made it possible?* |
 | Your part | "We" with no clear personal role | *What was your own part in rolling out the new WMS?* |
 
-Each question is written for that claim and is only raised where it fits: a claim about restructuring roles is not asked "by how much". The candidate can answer, correct the claim in their own words, or mark it **This is fine as it is**.
+Each question is written for that claim and is only raised where it fits: a claim about restructuring roles is not asked "by how much". Each card offers two clear choices (D-38): **Save my answer**, with one box for how they would answer or the claim corrected in their own words, or **This claim is fine as it is**, which needs no typing.
 
 **Rules:** the tone is that of a helpful colleague preparing them, never an accusation. An unusually large figure is never changed or removed by the app.
 
@@ -164,7 +165,7 @@ Each question is written for that claim and is only raised where it fits: a clai
 
 > *You now have 6 stories ready to tell and 2 almost there, up from 2 ready when you started. Your strongest for this role: carrier renegotiation, picking errors and the dispatch team turnaround. Still open: inventory planning (you said you haven't done it) and one claim to check.*
 
-Below it, the candidate's stories in full, ready to read before the interview, with a **Copy my stories** button.
+Below it, the candidate's stories in full, ready to read before the interview, with a **Copy all my stories** button that says what it does: it copies every story as plain text, to paste into the candidate's notes or a document before the interview.
 
 Then an honest next step:
 
@@ -207,6 +208,7 @@ Unchanged. Phase 1 is tested by invited team members (D-26, D-28). Phase 2 start
 | D-34 | Step 4 opens with a verdict, and its answers are "Yes, I have", "No, I haven't" and "Not sure". |
 | D-35 | Claim-check questions are written for each claim and raised only where they fit; the claim and the question are shown separately, and the candidate can mark a claim as fine. |
 | D-36 | The summary shows stories ready to tell, compares like with like, lets the candidate copy their stories, and states plainly where the test version ends. |
+| D-38 | Second walkthrough refinements: the Step 2 headline names only the labels that apply and each card shows its label's meaning; Step 3 buttons are Continue, Skip this question and Finish this story, each explained; Step 4 answers are "Yes, I have", "Partly" and "No, I haven't" (partly adds an example to the stories); Step 5 offers "Save my answer" or "This claim is fine as it is"; Step 6's copy button says what it copies and where to paste it. |
 
 ## Approval checklist
 

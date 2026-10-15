@@ -4,33 +4,31 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 // The app never changes a claim: the candidate explains it, or writes their own correction.
-export function ClaimAnswer({ id, canCorrect }: { id: string; canCorrect: boolean }) {
+export function ClaimAnswer({ id }: { id: string }) {
   const router = useRouter();
   const [answer, setAnswer] = useState("");
-  const [corrected, setCorrected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function save(fine = false) {
+  async function save(fine: boolean) {
     setBusy(true);
-    const res = await fetch("/api/claims", { method: "POST", body: JSON.stringify({ probeId: id, answer, corrected, fine }) });
+    const res = await fetch("/api/claims", { method: "POST", body: JSON.stringify({ probeId: id, answer: fine ? "" : answer, corrected: false, fine }) });
     setBusy(false);
     if (!res.ok) return setMessage("We couldn't save that. Please try again.");
     router.refresh();
   }
 
+  // Two clear choices (D-38): the claim stands as written, or the candidate answers or corrects it.
   return (
     <>
-      {canCorrect && (
-        <p className="small" style={{ margin: "0.25rem 0" }}>
-          <label><input type="radio" checked={!corrected} onChange={() => setCorrected(false)} /> Answer it</label>{" "}
-          <label><input type="radio" checked={corrected} onChange={() => setCorrected(true)} /> Correct it in my own words</label>
-        </p>
-      )}
-      <textarea rows={3} value={answer} onChange={(e) => setAnswer(e.target.value)} aria-label="Your answer" />
+      <label className="field" htmlFor={`claim-${id}`}>
+        Your answer<span className="hint">How you would answer, or the claim corrected in your own words.</span>
+      </label>
+      <textarea id={`claim-${id}`} rows={3} value={answer} onChange={(e) => setAnswer(e.target.value)} />
       <div className="actions">
-        <button type="button" className="btn primary" disabled={busy || !answer.trim()} onClick={() => save()}>Save</button>
-        <button type="button" className="btn secondary" disabled={busy} onClick={() => save(true)}>This is fine as it is</button>
+        <button type="button" className="btn primary" disabled={busy || !answer.trim()} onClick={() => save(false)}>Save my answer</button>
+        <span className="small muted">or</span>
+        <button type="button" className="btn secondary" disabled={busy} onClick={() => save(true)}>This claim is fine as it is</button>
       </div>
       {message && <p role="alert" className="alert">{message}</p>}
     </>

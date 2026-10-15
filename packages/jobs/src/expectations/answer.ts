@@ -1,10 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Screen 4 answers (AT-08). Yes adds the candidate's example to the evidence sprint;
-// no records a gap; not sure keeps it as an open question. Nothing else changes status:
+// Step 4 answers (AT-08, D-38). Yes or partly adds the candidate's example to their
+// stories; no records a gap. Nothing else changes status:
 // a missing item is not a gap until the candidate says so.
 
-export type ExpectationAnswer = "yes" | "no" | "unsure";
+export type ExpectationAnswer = "yes" | "partly" | "no";
 
 // Approved wording, by template (tone guard, D-34).
 export function expectationQuestion(e: { area: string; source: string }, title: string | null): string {
@@ -42,7 +42,7 @@ export async function answerExpectation(
   const question = expectationQuestion(exp, role?.title ?? null);
 
   let addedExperienceId: string | null = null;
-  if (req.answer === "yes") {
+  if (req.answer === "yes" || req.answer === "partly") {
     const example = req.example?.trim();
     if (!example) return { ok: false, error: "example_required" };
     // Joins the sprint after the experiences already chosen for this role.
@@ -65,8 +65,8 @@ export async function answerExpectation(
 
   await db.from("probes").insert({
     candidate_id: candidateId, trigger: "expectation", target_id: exp.id, question,
-    answer: req.answer === "yes" ? req.example?.trim() ?? "yes" : req.answer,
-    resulting_action: req.answer === "yes" ? "added_to_sprint" : req.answer === "no" ? "gap_recorded" : "left_open",
+    answer: req.answer === "no" ? "no" : `${req.answer}: ${req.example?.trim() ?? ""}`,
+    resulting_action: req.answer === "no" ? "gap_recorded" : "added_to_sprint",
     source_type: "candidate_answer",
   });
   return { ok: true, addedExperienceId };

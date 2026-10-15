@@ -49,13 +49,27 @@ export function strongestMaterial(experiences: ExperienceRow[], scores: ScoreRow
   return { top, rest, counts, rated: top.filter((c) => c.band).length, total: experiences.length };
 }
 
-// Approved Step 2 headline (05-phase1-experience.md, revision 2).
+// What each label means, shown on every card (D-38).
+export const BAND_MEANING: Record<Band, string> = {
+  interview_ready: "The result, your part and how you know are all there. It will hold up to follow-up questions.",
+  needs_detail: "A real result. One detail an interviewer will ask for is still missing.",
+  not_yet_a_story: "Describes the job more than what changed because of you. That is the story to build.",
+};
+
+const ORDER: Band[] = ["interview_ready", "needs_detail", "not_yet_a_story"];
+const PHRASE: Record<Band, string> = { interview_ready: "ready to tell", needs_detail: "almost there", not_yet_a_story: "worth building" };
+
+// Step 2 headline (05-phase1-experience.md, revision 2; D-38: only labels that apply are named).
 export function headline(counts: Record<Band, number>, shown: number, role: string | null): string {
   if (!shown) return "We couldn't find experiences in your CV to work with. Check that it lists what you did in each role, then upload it again.";
   const roleText = role?.trim() ? `a ${role.trim()} role` : "this role";
-  return `Here ${shown === 1 ? "is the experience" : `are the ${shown} experiences`} from your CV that best show what ${roleText} needs. ` +
-    `${counts.interview_ready} ${counts.interview_ready === 1 ? "is" : "are"} ready to tell, ` +
-    `${counts.needs_detail} ${counts.needs_detail === 1 ? "is" : "are"} almost there and ` +
-    `${counts.not_yet_a_story} ${counts.not_yet_a_story === 1 ? "is" : "are"} worth building. ` +
-    "In the next step we'll strengthen them, one at a time.";
+  if (shown === 1) {
+    const band = ORDER.find((b) => counts[b]);
+    return `Here is the experience from your CV that best shows what ${roleText} needs` +
+      (band ? `. It is ${PHRASE[band]}.` : ".") + " In the next step we'll strengthen it.";
+  }
+  const parts = ORDER.filter((b) => counts[b]).map((b) => `${counts[b]} ${PHRASE[b]}`);
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];
+  return `Here are the ${shown} experiences from your CV that best show what ${roleText} needs` +
+    (list ? `: ${list}.` : ".") + " In the next step we'll strengthen them, one at a time.";
 }

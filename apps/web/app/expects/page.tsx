@@ -43,7 +43,7 @@ export default async function Expects() {
                   <td className="small">{e.source === "in_ad" ? "In the ad" : "Typical for this role"}</td>
                   <td className="small">
                     {e.status === "found"
-                      ? <>Yes{textOf(e.matched_experience_id) ? `: ${short(textOf(e.matched_experience_id)!)}` : ""}</>
+                      ? <>{e.answer === "partly" ? "Partly" : "Yes"}{textOf(e.matched_experience_id) ? `: ${short(textOf(e.matched_experience_id)!)}` : ""}</>
                       : e.answer === "no" ? "A gap to prepare for"
                       : e.answer === "unsure" ? "Open question"
                       : "Not found"}

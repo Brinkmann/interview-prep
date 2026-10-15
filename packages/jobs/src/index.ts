@@ -14,7 +14,7 @@ export { openExcerpt } from "./redaction/hold";
 export { adHash, looksTruncated } from "./job-ad";
 export { isRemovedMarker } from "./redaction/rules";
 export { STORY_FIELDS, type Story } from "./experiences/rating";
-export { BAND_LABEL, headline, latestScores, strongestMaterial, type Card } from "./experiences/summary";
+export { BAND_LABEL, BAND_MEANING, headline, latestScores, strongestMaterial, type Card } from "./experiences/summary";
 
 export const inngest = new Inngest({ id: "interview-prep" });
 

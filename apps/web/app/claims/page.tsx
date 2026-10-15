@@ -51,7 +51,7 @@ export default async function Claims() {
           {p.answer ? (
             <p className="story" style={{ margin: 0 }}><b>{DONE[p.resulting_action ?? ""] ?? "Your answer"}</b>{p.resulting_action === "confirmed_fine" ? "." : `: ${p.answer}`}</p>
           ) : (
-            <ClaimAnswer id={p.id} canCorrect={p.trigger !== "ownership"} />
+            <ClaimAnswer id={p.id} />
           )}
         </section>
       ))}
