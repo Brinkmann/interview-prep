@@ -11,7 +11,9 @@ export function Answer({ id, question }: { id: string; question: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function send(answer: "yes" | "no" | "unsure") {
+  const [kind, setKind] = useState<"yes" | "partly">("yes");
+
+  async function send(answer: "yes" | "partly" | "no") {
     setBusy(true);
     const res = await fetch("/api/expectations", { method: "POST", body: JSON.stringify({ expectationId: id, answer, example }) });
     setBusy(false);
@@ -24,18 +26,19 @@ export function Answer({ id, question }: { id: string; question: string }) {
       <p style={{ marginTop: 0 }}><strong>{question}</strong></p>
       {!yes ? (
         <div className="actions">
-          <button type="button" className="btn secondary" disabled={busy} onClick={() => setYes(true)}>Yes, I have</button>
+          <button type="button" className="btn secondary" disabled={busy} onClick={() => (setKind("yes"), setYes(true))}>Yes, I have</button>
+          <button type="button" className="btn secondary" disabled={busy} onClick={() => (setKind("partly"), setYes(true))}>Partly</button>
           <button type="button" className="btn secondary" disabled={busy} onClick={() => send("no")}>No, I haven&apos;t</button>
-          <button type="button" className="btn secondary" disabled={busy} onClick={() => send("unsure")}>Not sure</button>
         </div>
       ) : (
         <>
           <label className="field" htmlFor={`ex-${id}`}>
-            Give a short example.<span className="hint">We&apos;ll add it to your stories so you can build it out.</span>
+            {kind === "yes" ? "Give a short example." : "Give a short example of what you have done."}
+            <span className="hint">We&apos;ll add it to your stories so you can build it out.</span>
           </label>
           <textarea id={`ex-${id}`} rows={3} value={example} onChange={(e) => setExample(e.target.value)} />
           <div className="actions">
-            <button type="button" className="btn primary" disabled={busy || !example.trim()} onClick={() => send("yes")}>Add to my stories</button>
+            <button type="button" className="btn primary" disabled={busy || !example.trim()} onClick={() => send(kind)}>Add to my stories</button>
             <button type="button" className="btn link" disabled={busy} onClick={() => setYes(false)}>Back</button>
           </div>
         </>

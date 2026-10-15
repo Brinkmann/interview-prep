@@ -47,7 +47,7 @@ describe("what this role expects (AT-08)", () => {
     expect(tables.expectations![0]!.source).toBe("in_ad");
   });
 
-  it("yes adds the example to the sprint, no records a gap, not sure stays open", async () => {
+  it("yes or partly adds the example to the stories, no records a gap (D-38)", async () => {
     const { deps, tables, client } = setup();
     await buildForRole(deps, "c1");
     const [, wms, inventory] = tables.expectations!;
@@ -66,8 +66,11 @@ describe("what this role expects (AT-08)", () => {
     expect(gapProbe).toMatchObject({ trigger: "expectation", resulting_action: "gap_recorded" });
     expect(gapProbe.question).toBe("Supply Chain Manager roles usually involve inventory planning or forecasting. Have you done this?");
 
-    await answerExpectation(client, "c1", { expectationId: inventory!.id as string, answer: "unsure" });
-    expect(inventory).toMatchObject({ answer: "unsure", status: "not_found" });
+    const [supplier] = tables.expectations!;
+    expect(await answerExpectation(client, "c1", { expectationId: supplier!.id as string, answer: "partly" })).toEqual({ ok: false, error: "example_required" });
+    await answerExpectation(client, "c1", { expectationId: supplier!.id as string, answer: "partly", example: "Managed two carrier contracts as a stand-in." });
+    expect(supplier).toMatchObject({ answer: "partly", status: "found" });
+    expect(tables.experiences!.filter((x) => x.source_type === "candidate_answer")).toHaveLength(2);
   });
 
   it("is not rebuilt once the candidate has answered", async () => {

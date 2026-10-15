@@ -7,6 +7,11 @@ type Story = { situation: string | null; action: string | null; result: string |
 type Proposal = { story: Story; needsLabel: boolean; suggestedLabel: "exact" | "estimate" | "not_said" };
 
 const LABEL = { interview_ready: "Ready to tell", needs_detail: "Almost there", not_yet_a_story: "Worth building" } as const;
+const MEANING = {
+  interview_ready: "The result, your part and how you know are all there.",
+  needs_detail: "A real result. One detail an interviewer will ask for is still missing.",
+  not_yet_a_story: "Describes the job more than what changed because of you.",
+} as const;
 const PARTS: { key: keyof Story; name: string; missing: string }[] = [
   { key: "situation", name: "Situation", missing: "What was the situation?" },
   { key: "action", name: "What you did", missing: "What did you do yourself?" },
@@ -154,7 +159,10 @@ export function Sprint({ initial }: { initial: StoryState[] }) {
           <p className="progress">Story {position} of {items.length}</p>
           <p className="muted small" style={{ margin: 0 }}>{current.job}</p>
           <p className="quote"><strong>&ldquo;{current.text}&rdquo;</strong></p>
-          <span className={`label ${current.band ?? "pending"}`}>{current.band ? LABEL[current.band] : "Rating…"}</span>
+          <p style={{ margin: "0.25rem 0" }}>
+            <span className={`label ${current.band ?? "pending"}`}>{current.band ? LABEL[current.band] : "Rating…"}</span>{" "}
+            {current.band && <span className="small muted">{MEANING[current.band]}</span>}
+          </p>
 
           <h2>Your story so far</h2>
           {!proposal && <StoryView story={current.story} />}
@@ -184,10 +192,14 @@ export function Sprint({ initial }: { initial: StoryState[] }) {
               <label className="field" htmlFor="answer">{current.question}</label>
               <textarea id="answer" rows={3} value={answer} onChange={(e) => setAnswer(e.target.value)} />
               <div className="actions">
-                <button type="button" className="btn primary" disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Working…" : "Next"}</button>
-                <button type="button" className="btn secondary" disabled={busy} onClick={skip}>Skip this one</button>
-                <button type="button" className="btn link" disabled={busy} onClick={finish}>This story is done</button>
+                <button type="button" className="btn primary" disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Working…" : "Continue"}</button>
+                <button type="button" className="btn secondary" disabled={busy} onClick={skip}>Skip this question</button>
+                <button type="button" className="btn secondary" disabled={busy} onClick={finish}>Finish this story</button>
               </div>
+              <p className="small muted">
+                <b>Skip this question</b> asks you something else about this story. <b>Finish this story</b> keeps what you have
+                and moves on to the next one.
+              </p>
             </>
           ) : current.complete ? (
             <p>This story is done.</p>

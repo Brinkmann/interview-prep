@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BAND_LABEL, headline, strongestMaterial, type Card } from "@interview-prep/jobs";
+import { BAND_LABEL, BAND_MEANING, headline, strongestMaterial, type Card } from "@interview-prep/jobs";
 import { supabaseServer } from "@/lib/supabase/server";
 import { NextStep, Page } from "../_ui/shell";
 import { AddStory } from "./add-story";
@@ -15,7 +15,10 @@ function CardView({ card }: { card: Card }) {
       <p className="quote">&ldquo;{card.text}&rdquo;</p>
       {card.band ? (
         <>
-          <span className={`label ${card.band}`}>{BAND_LABEL[card.band]}</span>
+          <p style={{ margin: "0.25rem 0" }}>
+            <span className={`label ${card.band}`}>{BAND_LABEL[card.band]}</span>{" "}
+            <span className="small muted">{BAND_MEANING[card.band]}</span>
+          </p>
           {card.strength && <p className="coach"><b>Strong:</b> {card.strength}</p>}
           {card.nextStep && <p className="coach"><b>Next:</b> {card.nextStep}</p>}
         </>
@@ -56,6 +59,7 @@ export default async function Found() {
         <p className="lead">{headline(s.counts, s.top.length, role?.title ?? null)}</p>
       )}
 
+      {s.top.length > 0 && <h2>{s.top.length === 1 ? "Your experience for this role" : "Your experiences for this role"}</h2>}
       {s.top.map((c) => <CardView key={c.id} card={c} />)}
 
       {s.rest.length > 0 && !working && (

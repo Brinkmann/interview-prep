@@ -127,7 +127,7 @@ Built and checked entirely by AI during development, stored in `packages/eval`, 
 | AT-05 | The sprint asks at most four questions per story, none for a detail the story already has; skipped questions are stored as unanswered | US-17, US-45 |
 | AT-06 | An unlabelled number cannot be saved; an estimate requires a basis; a seeded invented number is rejected | US-18 |
 | AT-07 | A graduate persona receives study, volunteer and part-time framing | US-17 |
-| AT-08 | Expectations carry an in_ad or typical label; yes adds to the sprint, no records a gap, not sure stays open | US-44 |
+| AT-08 | Expectations carry an in_ad or typical label; yes or partly adds an example to the stories, no records a gap, and an unanswered item is never treated as a gap | US-44 |
 | AT-09 | Date overlaps are always flagged; an unlikely figure prompts a method question and is never altered by the app; "we" claims prompt an ownership question | US-46 |
 | AT-10 | A rating never rises without a new evidence field | Approved rules |
 | AT-11 | Summary before and after counts cover the same stories, with added stories reported separately; feedback is saved | Screen 6 |

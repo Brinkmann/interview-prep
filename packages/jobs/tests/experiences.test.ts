@@ -131,8 +131,15 @@ describe("Step 2 strongest material (AT-04)", async () => {
       expect(s.top.filter((c) => c.band === band)).toHaveLength(s.counts[band]);
     }
     expect(headline({ interview_ready: 2, needs_detail: 4, not_yet_a_story: 3 }, 9, "Supply Chain Manager")).toBe(
-      "Here are the 9 experiences from your CV that best show what a Supply Chain Manager role needs. " +
-      "2 are ready to tell, 4 are almost there and 3 are worth building. In the next step we'll strengthen them, one at a time.",
+      "Here are the 9 experiences from your CV that best show what a Supply Chain Manager role needs: " +
+      "2 ready to tell, 4 almost there and 3 worth building. In the next step we'll strengthen them, one at a time.",
+    );
+    // Labels with no experiences are not named (D-38).
+    expect(headline({ interview_ready: 0, needs_detail: 1, not_yet_a_story: 0 }, 1, "Project Manager")).toBe(
+      "Here is the experience from your CV that best shows what a Project Manager role needs. It is almost there. In the next step we'll strengthen it.",
+    );
+    expect(headline({ interview_ready: 3, needs_detail: 0, not_yet_a_story: 2 }, 5, null)).toBe(
+      "Here are the 5 experiences from your CV that best show what this role needs: 3 ready to tell and 2 worth building. In the next step we'll strengthen them, one at a time.",
     );
   });
 });
