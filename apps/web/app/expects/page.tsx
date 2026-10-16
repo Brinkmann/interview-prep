@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { KeepFresh } from "../found/keep-fresh";
 import { NextStep, Page } from "../_ui/shell";
 import { Answer } from "./answer";
+import { Spinner } from "../_ui/working";
 
 // Step 4, Check for gaps (05-phase1-experience.md, revision 2; D-34).
 export default async function Expects() {
@@ -28,7 +29,7 @@ export default async function Expects() {
     <Page step={4} title="Am I missing anything?">
       {!list.length ? (
         <>
-          <p role="status" className="lead">We&apos;re working out what {roleName} role would normally ask for. This usually takes under a minute.</p>
+          <Spinner text={`Working out what ${roleName} role would normally ask for. This usually takes under a minute.`} />
           <KeepFresh />
         </>
       ) : (

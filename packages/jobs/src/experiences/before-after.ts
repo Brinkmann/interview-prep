@@ -48,10 +48,11 @@ const stories = (n: number) => `${n} ${n === 1 ? "story" : "stories"}`;
 
 // Approved Step 6 wording (05-phase1-experience.md, revision 2).
 export function summaryText(r: ReturnType<typeof beforeAfter>, open: { gaps: string[]; questions: number }): string {
-  const parts = [
-    `You now have ${stories(r.now.interview_ready)} ready to tell and ${r.now.needs_detail} almost there, ` +
-      `up from ${r.before.interview_ready} ready when you started.`,
-  ];
+  const now = `You have ${stories(r.now.interview_ready)} ready to tell and ${r.now.needs_detail} almost there`;
+  // Only say "up from" when something actually moved up.
+  const parts = [r.movedUp
+    ? `${now}, up from ${r.before.interview_ready} ready and ${r.before.needs_detail} almost there when you started.`
+    : `${now}. None has moved up yet: answering a few questions in Build your stories is the quickest way to strengthen them.`];
   if (r.addedCount) {
     parts.push(`You also added ${word(r.addedCount)} ${r.addedCount === 1 ? "story" : "stories"} of your own.`);
   }

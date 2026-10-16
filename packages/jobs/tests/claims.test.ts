@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerClaim, checkClaimsFor, datesQuestion, OWNERSHIP_FALLBACK, overlaps, saysWe, type ClaimDeps } from "../src/claims/check";
+import { answerClaim, checkClaimsFor, datesQuestion, datesQuestions, OWNERSHIP_FALLBACK, overlaps, saysWe, type ClaimDeps } from "../src/claims/check";
 import { fakeSupabase } from "./fake-supabase";
 
 const now = new Date("2026-10-14T00:00:00Z");
@@ -89,6 +89,23 @@ describe("claim checks (AT-09)", () => {
     expect(tables.probes!.filter((p) => p.trigger === "inconsistent")).toHaveLength(2);
     expect(tables.probes!.filter((p) => p.answer)).toHaveLength(1);
     expect(tables.probes).toHaveLength(5);
+  });
+
+  it("does not check part-time, volunteer or study roles, and asks once per overlapping job", () => {
+    const jobs = [
+      { label: "Montana Group", start: "2024-08", end: "2025-04", kind: "job" as const },
+      { label: "H3 Group", start: "2022-12", end: "2024-08", kind: "job" as const },
+      { label: "University of Waikato mentor", start: "2023", end: "present", kind: "volunteer" as const },
+    ];
+    expect(datesQuestions(jobs, now)).toEqual([]);
+    const busy = [
+      { label: "A", start: "2020-01", end: "2022-12", kind: "job" as const },
+      { label: "B", start: "2021-01", end: "2021-06", kind: "job" as const },
+      { label: "C", start: "2022-01", end: "2023-06", kind: "job" as const },
+    ];
+    expect(datesQuestions(busy, now)).toEqual([
+      "Your role at A overlaps with B (Jan 2021 to Jun 2021) and C (Jan 2022 to Dec 2022). Did you hold these at the same time, or is a date out?",
+    ]);
   });
 
   it("treats 'we' without 'I' as an ownership question, and keeps the tone neutral", () => {

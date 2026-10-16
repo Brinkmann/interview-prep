@@ -5,7 +5,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Nothing here changes the candidate's text: each flag is a question only.
 
 export type ClaimType = "vague" | "inconsistent" | "unlikely" | "ownership";
-export interface Job { label: string; start: string | null; end: string | null }
+// kind: roles commonly held alongside a main job (part-time, volunteer, study) are not
+// checked for overlaps; only main jobs are.
+export interface Job { label: string; start: string | null; end: string | null; kind?: "job" | "part_time" | "volunteer" | "study" }
 
 // Months since year 0.
 const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -84,6 +86,31 @@ export function datesQuestion(a: Job, b: Job, now = new Date()): string {
   return `Your roles at ${a.label} and ${b.label} overlap${when}. Did you hold both at once, or is one date out?`;
 }
 
+// One question per main job that overlaps others, so the candidate is not asked the
+// same thing twice (AT-09 still flags every overlap).
+export function datesQuestions(jobs: Job[], now = new Date()): string[] {
+  const main = jobs.filter((j) => !j.kind || j.kind === "job");
+  const pairs = overlapSpans(main, now);
+  const done = new Set<number>();
+  const out: string[] = [];
+  for (const [i, p] of pairs.entries()) {
+    if (done.has(i)) continue;
+    const [a] = p.jobs;
+    const group = pairs.map((q, k) => ({ q, k })).filter(({ q, k }) => !done.has(k) && (q.jobs[0] === a || q.jobs[1] === a));
+    group.forEach(({ k }) => done.add(k));
+    if (group.length === 1) {
+      out.push(datesQuestion(p.jobs[0], p.jobs[1], now));
+      continue;
+    }
+    const others = group.map(({ q }) => {
+      const other = q.jobs[0] === a ? q.jobs[1] : q.jobs[0];
+      return `${other.label} (${fromMonth(q.range[0])} to ${fromMonth(q.range[1])})`;
+    });
+    out.push(`Your role at ${a.label} overlaps with ${others.slice(0, -1).join(", ")} and ${others.at(-1)}. Did you hold these at the same time, or is a date out?`);
+  }
+  return out;
+}
+
 export const OWNERSHIP_FALLBACK = "What was your own part in this?";
 
 export interface ClaimDeps {
@@ -107,8 +134,8 @@ export async function checkClaimsFor(deps: ClaimDeps, candidateId: string, now =
   const rows: Record<string, unknown>[] = [];
   const base = { candidate_id: candidateId, answer: null, resulting_action: null, model_id: deps.modelId, prompt_version: deps.promptVersion };
 
-  for (const [a, b] of overlaps(await deps.jobDates(cv.data.redacted_text), now)) {
-    rows.push({ ...base, trigger: "inconsistent", target_id: cv.data.id, question: datesQuestion(a, b, now), source_type: "cv" });
+  for (const question of datesQuestions(await deps.jobDates(cv.data.redacted_text), now)) {
+    rows.push({ ...base, trigger: "inconsistent", target_id: cv.data.id, question, source_type: "cv" });
   }
   // "We" without "I" always gets an ownership question (AT-09).
   const ownership = list.flatMap((e, i) => (saysWe(e.original_text) ? [i] : []));
