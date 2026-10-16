@@ -3,15 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-// Moves an experience from the collapsed list into the candidate's stories (D-31).
-export function AddStory({ id }: { id: string }) {
+// Step 2 is a decision (D-40): add an experience to the stories, or take one out.
+export function StoryChoice({ id, action }: { id: string; action: "add" | "remove" }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  async function add() {
+  async function go() {
     setBusy(true);
-    const res = await fetch("/api/stories", { method: "POST", body: JSON.stringify({ experienceId: id }) });
+    const res = await fetch("/api/stories", { method: action === "add" ? "POST" : "DELETE", body: JSON.stringify({ experienceId: id }) });
     setBusy(false);
     if (res.ok) router.refresh();
   }
-  return <button type="button" className="btn secondary" disabled={busy} onClick={add}>Add to my stories</button>;
+  return action === "add"
+    ? <button type="button" className="btn secondary" disabled={busy} onClick={go}>Add to my stories</button>
+    : <button type="button" className="btn quiet small" disabled={busy} onClick={go}>Remove</button>;
 }

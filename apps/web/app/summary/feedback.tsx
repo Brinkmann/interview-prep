@@ -16,20 +16,16 @@ export function Feedback() {
 
   if (done) return <p>Thank you for your feedback.</p>;
   return (
-    <section>
-      <fieldset style={{ border: 0, padding: 0 }}>
-        <legend><strong>How useful were the questions we asked?</strong> (1 = not useful, 5 = very useful)</legend>
+    <>
+      <p><b>How useful were the questions we asked?</b> <span className="muted small">1 = not useful, 5 = very useful</span></p>
+      <div className="scale" role="radiogroup" aria-label="Usefulness from 1 to 5">
         {[1, 2, 3, 4, 5].map((n) => (
-          <label key={n} style={{ marginRight: "1rem" }}>
-            <input type="radio" name="usefulness" checked={usefulness === n} onChange={() => setUsefulness(n)} /> {n}
-          </label>
+          <button key={n} type="button" role="radio" aria-checked={usefulness === n} className={usefulness === n ? "on" : ""} onClick={() => setUsefulness(n)}>{n}</button>
         ))}
-      </fieldset>
-      <label htmlFor="comment" style={{ display: "block", marginTop: "1rem" }}><strong>What would you change?</strong></label>
-      <textarea id="comment" rows={4} value={comment} onChange={(e) => setComment(e.target.value)}
-        />
-      <div className="actions"><button type="button" className="btn primary" disabled={!usefulness} onClick={send}>Send feedback</button></div>
-      {message && <p role="alert">{message}</p>}
-    </section>
+      </div>
+      <label className="field" htmlFor="comment">What would you change?<textarea id="comment" rows={3} value={comment} onChange={(e) => setComment(e.target.value)} /></label>
+      <div className="row"><button type="button" className="btn primary" disabled={!usefulness} onClick={send}>Send feedback</button></div>
+      {message && <p role="alert" className="alert">{message}</p>}
+    </>
   );
 }

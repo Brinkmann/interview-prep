@@ -23,9 +23,9 @@ export function Answer({ id, question }: { id: string; question: string }) {
 
   return (
     <section className="card">
-      <p style={{ marginTop: 0 }}><strong>{question}</strong></p>
+      <p><strong>{question}</strong></p>
       {!yes ? (
-        <div className="actions">
+        <div className="row">
           <button type="button" className="btn secondary" disabled={busy} onClick={() => (setKind("yes"), setYes(true))}>Yes, I have</button>
           <button type="button" className="btn secondary" disabled={busy} onClick={() => (setKind("partly"), setYes(true))}>Partly</button>
           <button type="button" className="btn secondary" disabled={busy} onClick={() => send("no")}>No, I haven&apos;t</button>
@@ -37,7 +37,7 @@ export function Answer({ id, question }: { id: string; question: string }) {
             <span className="hint">We&apos;ll add it to your stories so you can build it out.</span>
           </label>
           <textarea id={`ex-${id}`} rows={3} value={example} onChange={(e) => setExample(e.target.value)} />
-          <div className="actions">
+          <div className="row">
             <button type="button" className="btn primary" disabled={busy || !example.trim()} onClick={() => send(kind)}>Add to my stories</button>
             <button type="button" className="btn link" disabled={busy} onClick={() => setYes(false)}>Back</button>
           </div>

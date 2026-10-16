@@ -13,15 +13,20 @@ export default async function SprintPage() {
   const { graduate, items } = await sprintItems(supabase);
 
   return (
-    <Page step={3} title="How do I turn these into stories I can tell?">
+    <Page
+      step={3}
+      title="Build your stories"
+      task={[
+        "Answer the question for the story on screen. Each answer is added to your story.",
+        "When a story is done, we move you to the next one automatically.",
+        "Use the strip of stories to jump between them at any time.",
+      ]}
+    >
       {items.length === 0 ? (
         <p>We haven&apos;t picked your experiences for this role yet. <a href="/found">Go back to your strongest material</a>.</p>
       ) : (
         <>
-          <p className="lead">
-            We&apos;ll take {graduate ? "the experiences from your study, volunteering and part-time work" : "your experiences"} one at a time and build each into a story you can tell:
-            the situation, what you did, and what changed. A few questions each, written for that story. Answer what you can and skip the rest.
-          </p>
+          {graduate && <p className="muted">We&apos;ll focus on your study, volunteering and part-time work.</p>}
           <Sprint initial={items.map(toState)} />
         </>
       )}
