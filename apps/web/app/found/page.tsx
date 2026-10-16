@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { NextStep, Page } from "../_ui/shell";
 import { AddStory } from "./add-story";
 import { KeepFresh } from "./keep-fresh";
+import { Working } from "../_ui/working";
 
 // Step 2, Your strongest material (05-phase1-experience.md, revision 2; D-30, D-31).
 // Every read runs as the candidate, under row-level security.
@@ -50,9 +51,12 @@ export default async function Found() {
     <Page step={2} title="What do I have that this role needs?">
       {working ? (
         <>
-          <p role="status" className="lead">
-            We&apos;re reading your CV and picking out the experiences that best show what this role needs. This usually takes under a minute.
-          </p>
+          <p className="lead">We&apos;re working through your CV. This usually takes under a minute.</p>
+          <Working
+            steps={["Reading your CV", "Finding your experiences", "Choosing the ones that matter for this role", "Rating each one"]}
+            current={!s.total ? 1 : !s.top.length ? 2 : 3}
+            detail={s.top.length ? `${s.rated} of ${s.top.length}` : undefined}
+          />
           <KeepFresh />
         </>
       ) : (

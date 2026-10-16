@@ -50,10 +50,11 @@ function storyOf(e: Evidence | null): Story | null {
   return { situation: e.situation ?? null, action: e.action ?? null, result: e.result ?? null };
 }
 
-// Everything the candidate has said for this story: the only allowed source of numbers.
+// Everything the candidate has said for this story, including the role and dates it sits
+// under in their CV: the only allowed source of numbers.
 function sources(item: SprintItem, extra: string[] = []): string[] {
   const s = storyOf(item.evidence);
-  return [item.text, ...(s ? Object.values(s).filter(Boolean) as string[] : []), ...item.history.map((h) => h.answer ?? ""), ...extra];
+  return [item.text, item.job, ...(s ? Object.values(s).filter(Boolean) as string[] : []), ...item.history.map((h) => h.answer ?? ""), ...extra];
 }
 
 async function saveEvidence(db: SupabaseClient, candidateId: string, item: SprintItem, patch: Record<string, unknown>) {

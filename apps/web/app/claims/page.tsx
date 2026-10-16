@@ -3,6 +3,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { KeepFresh } from "../found/keep-fresh";
 import { NextStep, Page } from "../_ui/shell";
 import { ClaimAnswer } from "./claim-answer";
+import { Spinner } from "../_ui/working";
 
 // Step 5, Prepare for challenges (05-phase1-experience.md, revision 2; D-35).
 const TYPE = { vague: "Needs a figure", inconsistent: "Dates", unlikely: "Unusually large", ownership: "Your part" } as const;
@@ -19,10 +20,11 @@ export default async function Claims() {
   const [{ data: probes }, { data: experiences }] = await Promise.all([
     supabase.from("probes").select("id, trigger, target_id, question, answer, resulting_action, created_at")
       .in("trigger", Object.keys(TYPE)).order("created_at"),
-    supabase.from("experiences").select("id, original_text, source_type, created_at").order("created_at"),
+    supabase.from("experiences").select("id, original_text, job_label, source_type, created_at").order("created_at"),
   ]);
   const list = probes ?? [];
   const textOf = (id: string) => (experiences ?? []).find((e) => e.id === id)?.original_text;
+  const roleOf = (id: string) => (experiences ?? []).find((e) => e.id === id)?.job_label;
   // Checks run a minute or so after experiences are found; after five minutes an empty list is final.
   const firstFound = (experiences ?? []).find((e) => e.source_type === "cv");
   const since = firstFound ? Date.now() - new Date(firstFound.created_at).getTime() : Infinity;
@@ -32,7 +34,7 @@ export default async function Claims() {
     <Page step={5} title="What will an interviewer push back on?">
       {waiting ? (
         <>
-          <p role="status" className="lead">We&apos;re reading your claims the way an interviewer might. This usually takes under a minute.</p>
+          <Spinner text="Reading your claims the way an interviewer might. This usually takes under a minute." />
           <KeepFresh />
         </>
       ) : !list.length ? (
@@ -45,7 +47,9 @@ export default async function Claims() {
       )}
       {list.map((p) => (
         <section key={p.id} className="card">
-          <p className="small muted" style={{ margin: 0 }}>{TYPE[p.trigger as Trigger]}</p>
+          <p className="small muted" style={{ margin: 0 }}>
+            {TYPE[p.trigger as Trigger]}{p.trigger !== "inconsistent" && roleOf(p.target_id) ? ` · ${roleOf(p.target_id)}` : ""}
+          </p>
           <p><b>From your CV:</b> {p.trigger === "inconsistent" ? "your job dates" : <>&ldquo;{textOf(p.target_id)}&rdquo;</>}</p>
           <p><b>An interviewer might ask:</b> <em>{p.question}</em></p>
           {p.answer ? (

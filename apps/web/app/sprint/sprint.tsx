@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { StoryState } from "@/lib/sprint";
+import { Spinner } from "../_ui/working";
 
 type Story = { situation: string | null; action: string | null; result: string | null };
 type Proposal = { story: Story; needsLabel: boolean; suggestedLabel: "exact" | "estimate" | "not_said" };
@@ -69,7 +70,9 @@ export function Sprint({ initial }: { initial: StoryState[] }) {
     const body = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      setMessage(ERRORS[body.error] ?? "Something went wrong. Please try again.");
+      setMessage(action === "open" && body.error === "could_not_read"
+        ? "We couldn't prepare a question for this story just now."
+        : ERRORS[body.error] ?? "Something went wrong. Please try again.");
       return null;
     }
     if (body.item) update(body.item);
@@ -197,14 +200,17 @@ export function Sprint({ initial }: { initial: StoryState[] }) {
                 <button type="button" className="btn secondary" disabled={busy} onClick={finish}>Finish this story</button>
               </div>
               <p className="small muted">
-                <b>Skip this question</b> asks you something else about this story. <b>Finish this story</b> keeps what you have
-                and moves on to the next one.
+                <b>Skip this question</b> moves past it; skipped questions are not held against you. <b>Finish this story</b> keeps
+                what you have and moves on to the next story.
               </p>
             </>
           ) : current.complete ? (
             <p>This story is done.</p>
           ) : (
-            <p className="muted" role="status">Reading your story…</p>
+            message ? (
+              <div className="actions"><button type="button" className="btn primary" disabled={busy} onClick={() => send("open")}>Try again</button>
+                <button type="button" className="btn secondary" disabled={busy} onClick={finish}>Move to the next story</button></div>
+            ) : <Spinner text="Reading your story and preparing a question…" />
           )}
           {message && <p role="alert" className="alert">{message}</p>}
         </section>

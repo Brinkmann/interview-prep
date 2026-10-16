@@ -55,3 +55,11 @@ table.plain th { text-align: left; font-size: 0.85rem; color: var(--muted); font
 table.plain td { padding: 0.55rem 0.5rem 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 details summary { cursor: pointer; color: var(--accent); font-weight: 600; margin: 1rem 0 0.5rem; }
 .alert { color: #9b1c1c; }
+.working { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.75rem 0; }
+.working .row { display: flex; align-items: center; gap: 0.6rem; }
+.working .row.todo { color: var(--muted); }
+.working .row.done { color: var(--ready); }
+.spinner { width: 1rem; height: 1rem; border: 2px solid var(--soft); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex: none; }
+.tick { width: 1rem; text-align: center; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }

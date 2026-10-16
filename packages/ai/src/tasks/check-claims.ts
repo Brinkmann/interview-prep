@@ -9,6 +9,7 @@ const month = z.string().nullable().describe('"YYYY-MM", or "YYYY" when only the
 const datesOutput = z.object({
   jobs: z.array(z.object({
     label: z.string().describe("Role and employer as written"),
+    kind: z.enum(["job", "part_time", "volunteer", "study"]).describe("job for a main paid role; part_time, volunteer or study for roles commonly held alongside one, such as mentoring, board, club or contract work on the side"),
     start: month,
     end: month.describe('"present" if current; otherwise as for start'),
   })),
@@ -16,7 +17,7 @@ const datesOutput = z.object({
 
 export const claimsJobDates: TaskDefinition<{ cvText: string }, typeof datesOutput> = {
   tier: "small",
-  promptVersion: "claims_job_dates@2",
+  promptVersion: "claims_job_dates@3",
   effort: "low",
   maxTokens: 3000,
   system: [

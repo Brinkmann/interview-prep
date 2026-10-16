@@ -27,10 +27,21 @@ describe("Step 6 where you stand (AT-11)", () => {
     expect(r.addedCount).toBe(1);
     expect(r.movedUp).toBe(1);
     expect(summaryText(r, { gaps: ["inventory planning"], questions: 1 })).toBe(
-      "You now have 1 story ready to tell and 1 almost there, up from 0 ready when you started. " +
+      "You have 1 story ready to tell and 1 almost there, up from 0 ready and 1 almost there when you started. " +
       "You also added one story of your own. " +
       "Your strongest for this role: \"Cut picking errors by redesigning slotting.\", \"Renegotiated carrier contracts.\", \"Ran the stocktake process.\". " +
       "Still open: inventory planning (you said you haven't done it); one question to come back to.",
+    );
+  });
+
+  it("does not say 'up from' when nothing has moved", () => {
+    const r = beforeAfter(
+      [{ id: "a", text: "A.", source_type: "cv", rank_for_role: 1 }],
+      [{ experience_id: "a", band: "needs_detail" as const, reasons: [], created_at: "2026-10-14T01:00:00Z" }],
+    );
+    expect(summaryText(r, { gaps: [], questions: 0 })).toBe(
+      "You have 0 stories ready to tell and 1 almost there. None has moved up yet: answering a few questions in Build your stories is the quickest way to strengthen them. " +
+      "Your strongest for this role: \"A.\".",
     );
   });
 });
