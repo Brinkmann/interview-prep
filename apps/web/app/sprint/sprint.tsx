@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { StoryState } from "@/lib/sprint";
+import { ActionBar } from "../_ui/shell";
 import { Spinner } from "../_ui/working";
 
 type Story = { situation: string | null; action: string | null; result: string | null };
@@ -25,21 +26,28 @@ const ERRORS: Record<string, string> = {
   empty: "There's nothing to save yet.",
 };
 
-function StoryView({ story, edit, onChange }: { story: Story | null; edit?: boolean; onChange?: (s: Story) => void }) {
+function StoryView({ story, before, edit, onChange }: {
+  story: Story | null; before?: Story | null; edit?: boolean; onChange?: (s: Story) => void;
+}) {
   return (
-    <dl className="story">
-      {PARTS.map((p) => (
-        <div key={p.key}>
-          <dt>{p.name}</dt>
-          {edit ? (
-            <dd><textarea rows={2} aria-label={p.name} value={story?.[p.key] ?? ""} onChange={(e) => onChange?.({ ...(story as Story), [p.key]: e.target.value })} /></dd>
-          ) : story?.[p.key] ? (
-            <dd>{story[p.key]}</dd>
-          ) : (
-            <dd className="missing">{p.missing}</dd>
-          )}
-        </div>
-      ))}
+    <dl className="star">
+      {PARTS.map((p) => {
+        const value = story?.[p.key];
+        // What the candidate's latest answer added is highlighted until they confirm it.
+        const fresh = before !== undefined && !!value && value !== (before?.[p.key] ?? null);
+        return (
+          <div key={p.key}>
+            <dt>{p.name}</dt>
+            {edit ? (
+              <dd><textarea rows={2} aria-label={p.name} value={value ?? ""} onChange={(e) => onChange?.({ ...(story as Story), [p.key]: e.target.value })} /></dd>
+            ) : value ? (
+              <dd className={fresh ? "new" : ""}>{value}</dd>
+            ) : (
+              <dd className="missing">{p.missing}</dd>
+            )}
+          </div>
+        );
+      })}
     </dl>
   );
 }
@@ -48,6 +56,8 @@ export function Sprint({ initial }: { initial: StoryState[] }) {
   const [items, setItems] = useState(initial);
   const firstOpen = initial.find((i) => !i.complete)?.id ?? null;
   const [currentId, setCurrentId] = useState<string | null>(firstOpen);
+  // The story last on screen, kept showing (as done) once every story is complete.
+  const [lastId, setLastId] = useState<string | null>(initial.at(-1)?.id ?? null);
   const [answer, setAnswer] = useState("");
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [editing, setEditing] = useState(false);
@@ -135,94 +145,107 @@ export function Sprint({ initial }: { initial: StoryState[] }) {
   }
 
   function moveOn(fromId: string) {
+    setLastId(fromId);
     const idx = items.findIndex((i) => i.id === fromId);
     const next = [...items.slice(idx + 1), ...items.slice(0, idx)].find((i) => !i.complete && i.id !== fromId);
     setCurrentId(next?.id ?? null);
   }
 
+  const shown = current ?? items.find((i) => i.id === lastId) ?? null;
+  const shownPos = shown ? items.findIndex((i) => i.id === shown.id) + 1 : 0;
+
+  let work: React.ReactNode = null;
+  if (!shown) {
+    work = null;
+  } else if (shown.complete) {
+    work = <p><b>This story is done.</b> You can come back and change it at any time.</p>;
+  } else if (proposal) {
+    work = (
+      <>
+        <p><b>Did we get this right?</b> {editing ? "Change anything that isn't what you meant, then save." : "We've added your answer to the story above, highlighted in green."}</p>
+        {proposal.needsLabel && (
+          <fieldset className="card" style={{ borderStyle: "dashed" }}>
+            <legend className="small"><b>Is that figure exact, or your estimate?</b></legend>
+            <div className="row">
+              <label><input type="radio" checked={isEstimate === false} onChange={() => setIsEstimate(false)} /> Exact</label>
+              <label><input type="radio" checked={isEstimate === true} onChange={() => setIsEstimate(true)} /> My estimate</label>
+            </div>
+            {isEstimate && <label className="field">How did you arrive at it?<input value={basis} onChange={(e) => setBasis(e.target.value)} /></label>}
+          </fieldset>
+        )}
+        <div className="row">
+          <button type="button" className="btn primary" disabled={busy} onClick={confirm}>{editing ? "Save my changes" : "Yes, that's right"}</button>
+          {!editing && <button type="button" className="btn secondary" disabled={busy} onClick={() => setEditing(true)}>Change it</button>}
+          <button type="button" className="btn quiet" disabled={busy} onClick={() => (setProposal(null), setEditing(false))}>Answer again</button>
+        </div>
+      </>
+    );
+  } else if (shown.question) {
+    work = (
+      <>
+        <label className="field" htmlFor="answer">{shown.question}<span className="hint">Answer in your own words. A rough figure is fine.</span></label>
+        <textarea id="answer" rows={3} value={answer} onChange={(e) => setAnswer(e.target.value)} />
+        <div className="spread">
+          <button type="button" className="btn primary" disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Adding…" : "Add to my story"}</button>
+          <div className="row">
+            <button type="button" className="btn quiet" disabled={busy} onClick={skip}>Skip this question</button>
+            <button type="button" className="btn quiet" disabled={busy} onClick={finish}>This story is done</button>
+          </div>
+        </div>
+      </>
+    );
+  } else if (message) {
+    work = (
+      <div className="row">
+        <button type="button" className="btn primary" disabled={busy} onClick={() => send("open")}>Try again</button>
+        <button type="button" className="btn secondary" disabled={busy} onClick={finish}>Move to the next story</button>
+      </div>
+    );
+  } else {
+    work = <Spinner text="Reading your story and preparing a question…" />;
+  }
+
+  const allDone = done === items.length;
   return (
     <>
-      <details className="card" open={!current}>
-        <summary style={{ margin: 0 }}>Your stories: {done} of {items.length} done</summary>
-        <ol>
-          {items.map((i) => (
-            <li key={i.id} style={{ margin: "0.4rem 0" }}>
-              <button type="button" className="btn link" style={{ padding: 0, textAlign: "left", fontWeight: i.id === currentId ? 700 : 400 }} onClick={() => open(i.id)}>
-                {i.text.length > 90 ? `${i.text.slice(0, 90)}…` : i.text}
-              </button>{" "}
-              <span className={`label ${i.band ?? "pending"}`}>{i.band ? LABEL[i.band] : "Rating…"}</span>
-              {i.complete && <span className="small muted"> · done</span>}
-            </li>
-          ))}
-        </ol>
-      </details>
+      <p className="muted small">{done} of {items.length} stories done</p>
+      <div className="strip" role="tablist" aria-label="Your stories">
+        {items.map((i, n) => (
+          <button key={i.id} type="button" role="tab" aria-selected={i.id === shown?.id} className={i.id === shown?.id ? "on" : ""} onClick={() => open(i.id)}>
+            <span className={`swatch ${i.band ?? ""}`} />{n + 1}. {i.text.length > 28 ? `${i.text.slice(0, 28)}…` : i.text}{i.complete ? " ✓" : ""}
+          </button>
+        ))}
+      </div>
 
-      {current ? (
-        <section className="card current">
-          <p className="progress">Story {position} of {items.length}</p>
-          <p className="muted small" style={{ margin: 0 }}>{current.job}</p>
-          <p className="quote"><strong>&ldquo;{current.text}&rdquo;</strong></p>
-          <p style={{ margin: "0.25rem 0" }}>
-            <span className={`label ${current.band ?? "pending"}`}>{current.band ? LABEL[current.band] : "Rating…"}</span>{" "}
-            {current.band && <span className="small muted">{MEANING[current.band]}</span>}
-          </p>
-
-          <h2>Your story so far</h2>
-          {!proposal && <StoryView story={current.story} />}
-
-          {proposal ? (
-            <>
-              <p><strong>Did we get this right?</strong></p>
-              <StoryView story={proposal.story} edit={editing} onChange={(s) => setProposal({ ...proposal, story: s })} />
-              {proposal.needsLabel && (
-                <fieldset className="card" style={{ margin: "0.5rem 0" }}>
-                  <legend>Is that figure exact, or your estimate?</legend>
-                  <label><input type="radio" checked={isEstimate === false} onChange={() => setIsEstimate(false)} /> Exact</label>{" "}
-                  <label><input type="radio" checked={isEstimate === true} onChange={() => setIsEstimate(true)} /> My estimate</label>
-                  {isEstimate && (
-                    <label className="field">How did you arrive at it?<input value={basis} onChange={(e) => setBasis(e.target.value)} /></label>
-                  )}
-                </fieldset>
-              )}
-              <div className="actions">
-                <button type="button" className="btn primary" disabled={busy} onClick={confirm}>{editing ? "Save my changes" : "Yes, looks right"}</button>
-                {!editing && <button type="button" className="btn secondary" disabled={busy} onClick={() => setEditing(true)}>Edit</button>}
-                <button type="button" className="btn link" disabled={busy} onClick={() => (setProposal(null), setEditing(false))}>Change my answer</button>
-              </div>
-            </>
-          ) : current.question ? (
-            <>
-              <label className="field" htmlFor="answer">{current.question}</label>
-              <textarea id="answer" rows={3} value={answer} onChange={(e) => setAnswer(e.target.value)} />
-              <div className="actions">
-                <button type="button" className="btn primary" disabled={busy || !answer.trim()} onClick={submit}>{busy ? "Working…" : "Continue"}</button>
-                <button type="button" className="btn secondary" disabled={busy} onClick={skip}>Skip this question</button>
-                <button type="button" className="btn secondary" disabled={busy} onClick={finish}>Finish this story</button>
-              </div>
-              <p className="small muted">
-                <b>Skip this question</b> moves past it; skipped questions are not held against you. <b>Finish this story</b> keeps
-                what you have and moves on to the next story.
-              </p>
-            </>
-          ) : current.complete ? (
-            <p>This story is done.</p>
-          ) : (
-            message ? (
-              <div className="actions"><button type="button" className="btn primary" disabled={busy} onClick={() => send("open")}>Try again</button>
-                <button type="button" className="btn secondary" disabled={busy} onClick={finish}>Move to the next story</button></div>
-            ) : <Spinner text="Reading your story and preparing a question…" />
-          )}
+      {shown ? (
+        <section className="card focus">
+          <div className="spread">
+            <span className="eyebrow">Story {shownPos} of {items.length}</span>
+            {shown.band ? <span className={`label ${shown.band}`}>{LABEL[shown.band]}</span> : <span className="label pending">Rating…</span>}
+          </div>
+          {shown.band && <p className="meaning">{MEANING[shown.band]}</p>}
+          <span className="role">{shown.job}</span>
+          <p className="quote">From your CV: &ldquo;{shown.text}&rdquo;</p>
+          <h3>Your story so far</h3>
+          {proposal
+            ? <StoryView story={proposal.story} before={shown.story} edit={editing} onChange={(st) => setProposal({ ...proposal, story: st })} />
+            : <StoryView story={shown.story} />}
+          {work}
           {message && <p role="alert" className="alert">{message}</p>}
         </section>
-      ) : (
+      ) : null}
+
+      {allDone && (
         <section className="card">
-          <p><strong>You&apos;ve been through every story.</strong> Next, let&apos;s check what this role usually asks for that we haven&apos;t covered yet.</p>
+          <p><b>You&apos;ve been through every story.</b> Next, let&apos;s check what this role usually asks for that your stories don&apos;t show yet.</p>
         </section>
       )}
 
-      <p className="next">
-        <a className={`btn ${current ? "secondary" : "primary"}`} href="/expects">{current ? "Finish for now: check for gaps" : "Next: check for gaps"}</a>
-      </p>
+      <ActionBar
+        back="/found"
+        hint={`${done} of ${items.length} stories done`}
+        next={{ href: "/expects", text: allDone ? "Next: check for gaps" : "Finish for now: check for gaps" }}
+      />
     </>
   );
 }

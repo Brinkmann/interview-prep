@@ -4,7 +4,7 @@ export function Working({ steps, current, detail }: { steps: string[]; current: 
   return (
     <div className="working card" role="status" aria-live="polite">
       {steps.map((s, i) => (
-        <div key={s} className={`row ${i < current ? "done" : i === current ? "" : "todo"}`}>
+        <div key={s} className={`p ${i < current ? "done" : i === current ? "" : "todo"}`}>
           {i < current ? <span className="tick">✓</span> : i === current ? <span className="spinner" aria-hidden /> : <span className="tick">·</span>}
           <span>{s}{i === current && detail ? ` (${detail})` : ""}</span>
         </div>
@@ -14,5 +14,5 @@ export function Working({ steps, current, detail }: { steps: string[]; current: 
 }
 
 export function Spinner({ text }: { text: string }) {
-  return <p className="working" role="status"><span className="row"><span className="spinner" aria-hidden /> {text}</span></p>;
+  return <p className="working" role="status"><span className="p"><span className="spinner" aria-hidden /> {text}</span></p>;
 }

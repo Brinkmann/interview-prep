@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { KeepFresh } from "../found/keep-fresh";
-import { NextStep, Page } from "../_ui/shell";
-import { ClaimAnswer } from "./claim-answer";
+import { ActionBar, Page } from "../_ui/shell";
 import { Spinner } from "../_ui/working";
+import { ClaimAnswer } from "./claim-answer";
 
-// Step 5, Prepare for challenges (05-phase1-experience.md, revision 2; D-35).
+// Step 5, Prepare for challenges (05-phase1-experience.md; D-35, D-38, D-40).
 const TYPE = { vague: "Needs a figure", inconsistent: "Dates", unlikely: "Unusually large", ownership: "Your part" } as const;
 type Trigger = keyof typeof TYPE;
 const DONE: Record<string, string> = {
-  explained: "Your answer", candidate_corrected: "Your corrected wording", confirmed_fine: "You marked this as fine as it is",
+  explained: "Answer saved", candidate_corrected: "Correction saved", confirmed_fine: "Marked as fine as it is",
 };
 
 export default async function Claims() {
@@ -23,15 +23,25 @@ export default async function Claims() {
     supabase.from("experiences").select("id, original_text, job_label, source_type, created_at").order("created_at"),
   ]);
   const list = probes ?? [];
-  const textOf = (id: string) => (experiences ?? []).find((e) => e.id === id)?.original_text;
-  const roleOf = (id: string) => (experiences ?? []).find((e) => e.id === id)?.job_label;
+  const exp = (id: string) => (experiences ?? []).find((e) => e.id === id);
   // Checks run a minute or so after experiences are found; after five minutes an empty list is final.
   const firstFound = (experiences ?? []).find((e) => e.source_type === "cv");
   const since = firstFound ? Date.now() - new Date(firstFound.created_at).getTime() : Infinity;
   const waiting = !list.length && since < 5 * 60_000;
+  const left = list.filter((p) => !p.answer).length;
+  const firstOpen = list.find((p) => !p.answer)?.id;
 
   return (
-    <Page step={5} title="What will an interviewer push back on?">
+    <Page
+      step={5}
+      title="What will an interviewer push back on?"
+      task={[
+        "Read each claim and the question an interviewer is likely to ask about it.",
+        "Answer it now while you can check your facts, or mark it as fine as it is.",
+        "Nothing in your CV is changed.",
+      ]}
+      bar={<ActionBar back="/expects" hint={waiting ? "Still working…" : `${left} still to handle`} next={{ href: "/summary", text: "Next: where you stand", disabled: waiting }} />}
+    >
       {waiting ? (
         <>
           <Spinner text="Reading your claims the way an interviewer might. This usually takes under a minute." />
@@ -40,26 +50,30 @@ export default async function Claims() {
       ) : !list.length ? (
         <p className="lead">We didn&apos;t find any claims an interviewer is likely to push back on.</p>
       ) : (
-        <p className="lead">
-          These are the claims an interviewer is most likely to question. Answer them here, while you can check your facts,
-          or mark any that are fine as they are.
-        </p>
+        <p className="muted">{list.length - left} of {list.length} handled.</p>
       )}
-      {list.map((p) => (
-        <section key={p.id} className="card">
-          <p className="small muted" style={{ margin: 0 }}>
-            {TYPE[p.trigger as Trigger]}{p.trigger !== "inconsistent" && roleOf(p.target_id) ? ` · ${roleOf(p.target_id)}` : ""}
-          </p>
-          <p><b>From your CV:</b> {p.trigger === "inconsistent" ? "your job dates" : <>&ldquo;{textOf(p.target_id)}&rdquo;</>}</p>
-          <p><b>An interviewer might ask:</b> <em>{p.question}</em></p>
-          {p.answer ? (
-            <p className="story" style={{ margin: 0 }}><b>{DONE[p.resulting_action ?? ""] ?? "Your answer"}</b>{p.resulting_action === "confirmed_fine" ? "." : `: ${p.answer}`}</p>
-          ) : (
-            <ClaimAnswer id={p.id} />
-          )}
-        </section>
-      ))}
-      {!waiting && <NextStep href="/summary">Next: where you stand</NextStep>}
+      {list.map((p) => {
+        const e = exp(p.target_id);
+        return (
+          <section key={p.id} className={`card${p.id === firstOpen ? " focus" : ""}`}>
+            <div className="spread">
+              <span className="eyebrow">{TYPE[p.trigger as Trigger]}</span>
+              <span className="role">{p.trigger === "inconsistent" ? "Your job dates" : e?.job_label}</span>
+            </div>
+            {p.trigger !== "inconsistent" && e && (
+              <p><span className="muted small">From your CV</span><br /><b>&ldquo;{e.original_text}&rdquo;</b></p>
+            )}
+            <p className="note"><span className="muted small">An interviewer might ask</span><br />{p.question}</p>
+            {p.answer ? (
+              <p className="small" style={{ color: "var(--ready)" }}>
+                ✓ {DONE[p.resulting_action ?? ""] ?? "Answer saved"}{p.resulting_action !== "confirmed_fine" ? `: ${p.answer}` : ""}
+              </p>
+            ) : (
+              <ClaimAnswer id={p.id} />
+            )}
+          </section>
+        );
+      })}
     </Page>
   );
 }

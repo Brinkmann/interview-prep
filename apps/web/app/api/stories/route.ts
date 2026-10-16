@@ -20,3 +20,14 @@ export async function POST(request: Request) {
   await inngest.send({ name: EVIDENCE_CHANGED, data: { candidateId: auth.user.id, experienceId } });
   return Response.json({ ok: true });
 }
+
+// Takes an experience out of the candidate's stories; it returns to "More from your CV".
+export async function DELETE(request: Request) {
+  const supabase = await supabaseServer();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return Response.json({ error: "signed_out" }, { status: 401 });
+  const { experienceId } = (await request.json().catch(() => ({}))) as { experienceId?: unknown };
+  if (typeof experienceId !== "string") return Response.json({ error: "invalid" }, { status: 400 });
+  const { error } = await supabase.from("experiences").update({ rank_for_role: null }).eq("id", experienceId);
+  return error ? Response.json({ error: "could_not_save" }, { status: 500 }) : Response.json({ ok: true });
+}

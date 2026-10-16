@@ -25,7 +25,7 @@ export function ClaimAnswer({ id }: { id: string }) {
         Your answer<span className="hint">How you would answer, or the claim corrected in your own words.</span>
       </label>
       <textarea id={`claim-${id}`} rows={3} value={answer} onChange={(e) => setAnswer(e.target.value)} />
-      <div className="actions">
+      <div className="row">
         <button type="button" className="btn primary" disabled={busy || !answer.trim()} onClick={() => save(false)}>Save my answer</button>
         <span className="small muted">or</span>
         <button type="button" className="btn secondary" disabled={busy} onClick={() => save(true)}>This claim is fine as it is</button>
